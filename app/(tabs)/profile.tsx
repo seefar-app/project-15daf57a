@@ -130,6 +130,7 @@ export default function ProfileScreen() {
             Profile
           </Text>
           <Pressable
+            onPress={() => router.push('/profile/edit')}
             style={{
               width: 44,
               height: 44,
@@ -139,7 +140,7 @@ export default function ProfileScreen() {
               alignItems: 'center',
             }}
           >
-            <Ionicons name="settings-outline" size={22} color="#fff" />
+            <Ionicons name="create-outline" size={22} color="#fff" />
           </Pressable>
         </View>
       </LinearGradient>
@@ -244,21 +245,25 @@ export default function ProfileScreen() {
               icon="person-outline"
               title="Edit Profile"
               subtitle="Update your personal information"
+              onPress={() => router.push('/profile/edit')}
             />
             <MenuItem
               icon="location-outline"
               title="Saved Addresses"
               subtitle={`${user?.savedAddresses?.length || 0} addresses saved`}
+              onPress={() => router.push('/profile/addresses')}
             />
             <MenuItem
               icon="card-outline"
               title="Payment Methods"
               subtitle="Manage your payment options"
+              onPress={() => router.push('/profile/payment-methods')}
             />
             <MenuItem
               icon="heart-outline"
               title="Favorites"
               subtitle="View your favorite restaurants"
+              onPress={() => router.push('/profile/favorites')}
             />
           </Card>
 
