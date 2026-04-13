@@ -21,24 +21,34 @@ import { useTheme } from '@/hooks/useTheme';
 
 const { height } = Dimensions.get('window');
 
+type AuthMode = 'login' | 'forgot-email' | 'forgot-code' | 'forgot-password' | 'forgot-success';
+
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { login, isLoading, authError } = useAuthStore();
 
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(50);
+    
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 400,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
@@ -48,7 +58,7 @@ export default function LoginScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [mode]);
 
   const handleLogin = async () => {
     setLocalError('');
@@ -68,6 +78,97 @@ export default function LoginScreen() {
     }
   };
 
+  const handleSendResetCode = async () => {
+    setLocalError('');
+    
+    if (!email.trim()) {
+      setLocalError('Please enter your email');
+      return;
+    }
+
+    setIsProcessing(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsProcessing(false);
+    setMode('forgot-code');
+  };
+
+  const handleVerifyCode = async () => {
+    setLocalError('');
+    
+    if (!resetCode.trim() || resetCode.length !== 6) {
+      setLocalError('Please enter the 6-digit code');
+      return;
+    }
+
+    setIsProcessing(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsProcessing(false);
+    setMode('forgot-password');
+  };
+
+  const handleResetPassword = async () => {
+    setLocalError('');
+    
+    if (newPassword.length < 6) {
+      setLocalError('Password must be at least 6 characters');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setLocalError('Passwords do not match');
+      return;
+    }
+
+    setIsProcessing(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsProcessing(false);
+    setMode('forgot-success');
+  };
+
+  const handleBackToLogin = () => {
+    setMode('login');
+    setLocalError('');
+    setResetCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const getHeaderContent = () => {
+    switch (mode) {
+      case 'login':
+        return {
+          title: 'Welcome Back',
+          subtitle: 'Sign in to continue ordering',
+          icon: 'restaurant' as const,
+        };
+      case 'forgot-email':
+        return {
+          title: 'Forgot Password?',
+          subtitle: 'Enter your email to receive a reset code',
+          icon: 'mail-outline' as const,
+        };
+      case 'forgot-code':
+        return {
+          title: 'Enter Code',
+          subtitle: `We sent a code to ${email}`,
+          icon: 'shield-checkmark-outline' as const,
+        };
+      case 'forgot-password':
+        return {
+          title: 'New Password',
+          subtitle: 'Create a strong password',
+          icon: 'lock-closed-outline' as const,
+        };
+      case 'forgot-success':
+        return {
+          title: 'Success!',
+          subtitle: 'Your password has been reset',
+          icon: 'checkmark-circle-outline' as const,
+        };
+    }
+  };
+
+  const headerContent = getHeaderContent();
   const displayError = localError || authError;
 
   return (
@@ -85,20 +186,54 @@ export default function LoginScreen() {
             paddingBottom: 40,
           }}
         >
+          {mode !== 'login' && (
+            <Pressable
+              onPress={handleBackToLogin}
+              style={{
+                position: 'absolute',
+                top: insets.top + 12,
+                left: 16,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </Pressable>
+          )}
+
           <Animated.View
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
             }}
           >
+            {mode !== 'login' && (
+              <View
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                <Ionicons name={headerContent.icon} size={32} color="#fff" />
+              </View>
+            )}
             <Text
               style={{
-                fontSize: 36,
+                fontSize: mode === 'login' ? 36 : 32,
                 fontWeight: '700',
                 color: '#fff',
               }}
             >
-              Welcome Back
+              {headerContent.title}
             </Text>
             <Text
               style={{
@@ -107,7 +242,7 @@ export default function LoginScreen() {
                 marginTop: 8,
               }}
             >
-              Sign in to continue ordering
+              {headerContent.subtitle}
             </Text>
           </Animated.View>
         </LinearGradient>
@@ -132,140 +267,323 @@ export default function LoginScreen() {
               gap: 20,
             }}
           >
-            <Input
-              label="Email"
-              placeholder="Enter your email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              icon="mail-outline"
-            />
+            {mode === 'login' && (
+              <>
+                <Input
+                  label="Email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  icon="mail-outline"
+                />
 
-            <Input
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              icon="lock-closed-outline"
-            />
+                <Input
+                  label="Password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  icon="lock-closed-outline"
+                />
 
-            <Pressable style={{ alignSelf: 'flex-end' }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: theme.primary,
-                  fontWeight: '500',
-                }}
-              >
-                Forgot Password?
-              </Text>
-            </Pressable>
-
-            {displayError && (
-              <View
-                style={{
-                  backgroundColor: theme.errorLight,
-                  padding: 12,
-                  borderRadius: 8,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <Ionicons name="alert-circle" size={20} color={theme.error} />
-                <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
-              </View>
-            )}
-
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={isLoading}
-              fullWidth
-              size="lg"
-            />
-
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginVertical: 24,
-              }}
-            >
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
-              <Text
-                style={{
-                  marginHorizontal: 16,
-                  color: theme.textMuted,
-                  fontSize: 14,
-                }}
-              >
-                or continue with
-              </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: 14,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  backgroundColor: theme.card,
-                }}
-              >
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-                <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
-                  Google
-                </Text>
-              </Pressable>
-              <Pressable
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: 14,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  backgroundColor: theme.card,
-                }}
-              >
-                <Ionicons name="logo-apple" size={20} color={theme.text} />
-                <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
-                  Apple
-                </Text>
-              </Pressable>
-            </View>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                marginTop: 24,
-              }}
-            >
-              <Text style={{ color: theme.textSecondary }}>
-                Don't have an account?{' '}
-              </Text>
-              <Link href="/(auth)/signup" asChild>
-                <Pressable>
-                  <Text style={{ color: theme.primary, fontWeight: '600' }}>
-                    Sign Up
+                <Pressable 
+                  style={{ alignSelf: 'flex-end' }}
+                  onPress={() => setMode('forgot-email')}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: theme.primary,
+                      fontWeight: '500',
+                    }}
+                  >
+                    Forgot Password?
                   </Text>
                 </Pressable>
-              </Link>
-            </View>
+
+                {displayError && (
+                  <View
+                    style={{
+                      backgroundColor: theme.errorLight,
+                      padding: 12,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={20} color={theme.error} />
+                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
+                  </View>
+                )}
+
+                <Button
+                  title="Sign In"
+                  onPress={handleLogin}
+                  loading={isLoading}
+                  fullWidth
+                  size="lg"
+                />
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginVertical: 24,
+                  }}
+                >
+                  <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+                  <Text
+                    style={{
+                      marginHorizontal: 16,
+                      color: theme.textMuted,
+                      fontSize: 14,
+                    }}
+                  >
+                    or continue with
+                  </Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Pressable
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      padding: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.card,
+                    }}
+                  >
+                    <Ionicons name="logo-google" size={20} color="#DB4437" />
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
+                      Google
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      padding: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.card,
+                    }}
+                  >
+                    <Ionicons name="logo-apple" size={20} color={theme.text} />
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
+                      Apple
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    marginTop: 24,
+                  }}
+                >
+                  <Text style={{ color: theme.textSecondary }}>
+                    Don't have an account?{' '}
+                  </Text>
+                  <Link href="/(auth)/signup" asChild>
+                    <Pressable>
+                      <Text style={{ color: theme.primary, fontWeight: '600' }}>
+                        Sign Up
+                      </Text>
+                    </Pressable>
+                  </Link>
+                </View>
+              </>
+            )}
+
+            {mode === 'forgot-email' && (
+              <>
+                <Input
+                  label="Email Address"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  icon="mail-outline"
+                />
+
+                {displayError && (
+                  <View
+                    style={{
+                      backgroundColor: theme.errorLight,
+                      padding: 12,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={20} color={theme.error} />
+                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
+                  </View>
+                )}
+
+                <Button
+                  title="Send Reset Code"
+                  onPress={handleSendResetCode}
+                  loading={isProcessing}
+                  fullWidth
+                  size="lg"
+                />
+              </>
+            )}
+
+            {mode === 'forgot-code' && (
+              <>
+                <Input
+                  label="Verification Code"
+                  placeholder="Enter 6-digit code"
+                  value={resetCode}
+                  onChangeText={setResetCode}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  icon="shield-checkmark-outline"
+                />
+
+                <Pressable onPress={handleSendResetCode}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: theme.primary,
+                      fontWeight: '500',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Didn't receive the code? Resend
+                  </Text>
+                </Pressable>
+
+                {displayError && (
+                  <View
+                    style={{
+                      backgroundColor: theme.errorLight,
+                      padding: 12,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={20} color={theme.error} />
+                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
+                  </View>
+                )}
+
+                <Button
+                  title="Verify Code"
+                  onPress={handleVerifyCode}
+                  loading={isProcessing}
+                  fullWidth
+                  size="lg"
+                />
+              </>
+            )}
+
+            {mode === 'forgot-password' && (
+              <>
+                <Input
+                  label="New Password"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  icon="lock-closed-outline"
+                />
+
+                <Input
+                  label="Confirm Password"
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  icon="lock-closed-outline"
+                />
+
+                {displayError && (
+                  <View
+                    style={{
+                      backgroundColor: theme.errorLight,
+                      padding: 12,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={20} color={theme.error} />
+                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
+                  </View>
+                )}
+
+                <Button
+                  title="Reset Password"
+                  onPress={handleResetPassword}
+                  loading={isProcessing}
+                  fullWidth
+                  size="lg"
+                />
+              </>
+            )}
+
+            {mode === 'forgot-success' && (
+              <>
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 40,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 50,
+                      backgroundColor: theme.successLight,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 24,
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle" size={60} color={theme.success} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      color: theme.textSecondary,
+                      textAlign: 'center',
+                    }}
+                  >
+                    You can now sign in with your new password
+                  </Text>
+                </View>
+
+                <Button
+                  title="Back to Login"
+                  onPress={handleBackToLogin}
+                  fullWidth
+                  size="lg"
+                />
+              </>
+            )}
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
