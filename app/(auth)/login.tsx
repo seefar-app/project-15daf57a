@@ -20,6 +20,7 @@ import { Toast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const { height } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { t, isRTL } = useTranslation();
   const { login, isLoading, authError } = useAuthStore();
   const { toast, hideToast, error: showError, success: showSuccess } = useToast();
 
@@ -67,24 +69,24 @@ export default function LoginScreen() {
     setLocalError('');
     
     if (!email.trim()) {
-      setLocalError('Please enter your email');
-      showError('Please enter your email');
+      setLocalError(t('validation_email_required'));
+      showError(t('validation_email_required'));
       return;
     }
     if (!password) {
-      setLocalError('Please enter your password');
-      showError('Please enter your password');
+      setLocalError(t('validation_password_required'));
+      showError(t('validation_password_required'));
       return;
     }
 
     const success = await login(email, password);
     if (success) {
-      showSuccess('Welcome back!');
+      showSuccess(t('toast_welcome_back'));
       setTimeout(() => {
         router.replace('/(tabs)');
       }, 500);
     } else {
-      showError(authError || 'Login failed. Please try again.');
+      showError(authError || t('toast_login_failed'));
     }
   };
 
@@ -92,15 +94,15 @@ export default function LoginScreen() {
     setLocalError('');
     
     if (!email.trim()) {
-      setLocalError('Please enter your email');
-      showError('Please enter your email');
+      setLocalError(t('validation_email_required'));
+      showError(t('validation_email_required'));
       return;
     }
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsProcessing(false);
-    showSuccess('Reset code sent to your email');
+    showSuccess(t('toast_code_sent'));
     setMode('forgot-code');
   };
 
@@ -108,15 +110,15 @@ export default function LoginScreen() {
     setLocalError('');
     
     if (!resetCode.trim() || resetCode.length !== 6) {
-      setLocalError('Please enter the 6-digit code');
-      showError('Please enter the 6-digit code');
+      setLocalError(t('validation_code_required'));
+      showError(t('validation_code_required'));
       return;
     }
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsProcessing(false);
-    showSuccess('Code verified successfully');
+    showSuccess(t('toast_code_verified'));
     setMode('forgot-password');
   };
 
@@ -124,21 +126,21 @@ export default function LoginScreen() {
     setLocalError('');
     
     if (newPassword.length < 6) {
-      setLocalError('Password must be at least 6 characters');
-      showError('Password must be at least 6 characters');
+      setLocalError(t('validation_password_min'));
+      showError(t('validation_password_min'));
       return;
     }
     
     if (newPassword !== confirmPassword) {
-      setLocalError('Passwords do not match');
-      showError('Passwords do not match');
+      setLocalError(t('validation_passwords_match'));
+      showError(t('validation_passwords_match'));
       return;
     }
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsProcessing(false);
-    showSuccess('Password reset successfully');
+    showSuccess(t('toast_password_reset'));
     setMode('forgot-success');
   };
 
@@ -154,32 +156,32 @@ export default function LoginScreen() {
     switch (mode) {
       case 'login':
         return {
-          title: 'Welcome Back',
-          subtitle: 'Sign in to continue ordering',
+          title: t('auth_welcome_back'),
+          subtitle: t('auth_sign_in_subtitle'),
           icon: 'restaurant' as const,
         };
       case 'forgot-email':
         return {
-          title: 'Forgot Password?',
-          subtitle: 'Enter your email to receive a reset code',
+          title: t('auth_forgot_title'),
+          subtitle: t('auth_forgot_subtitle'),
           icon: 'mail-outline' as const,
         };
       case 'forgot-code':
         return {
-          title: 'Enter Code',
-          subtitle: `We sent a code to ${email}`,
+          title: t('auth_enter_code'),
+          subtitle: `${t('auth_code_sent_to')} ${email}`,
           icon: 'shield-checkmark-outline' as const,
         };
       case 'forgot-password':
         return {
-          title: 'New Password',
-          subtitle: 'Create a strong password',
+          title: t('auth_new_password'),
+          subtitle: t('auth_create_strong_password'),
           icon: 'lock-closed-outline' as const,
         };
       case 'forgot-success':
         return {
-          title: 'Success!',
-          subtitle: 'Your password has been reset',
+          title: t('auth_success_title'),
+          subtitle: t('auth_password_reset_success'),
           icon: 'checkmark-circle-outline' as const,
         };
     }
@@ -217,7 +219,7 @@ export default function LoginScreen() {
               style={{
                 position: 'absolute',
                 top: insets.top + 12,
-                left: 16,
+                [isRTL ? 'right' : 'left']: 16,
                 width: 44,
                 height: 44,
                 borderRadius: 22,
@@ -225,10 +227,10 @@ export default function LoginScreen() {
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
-              accessibilityLabel="Go back to login"
+              accessibilityLabel={t('common_back')}
               accessibilityRole="button"
             >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#fff" />
             </Pressable>
           )}
 
@@ -297,30 +299,30 @@ export default function LoginScreen() {
             {mode === 'login' && (
               <>
                 <Input
-                  label="Email"
-                  placeholder="Enter your email"
+                  label={t('auth_email')}
+                  placeholder={t('auth_email')}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   icon="mail-outline"
-                  accessibilityLabel="Email input"
+                  accessibilityLabel={t('auth_email')}
                 />
 
                 <Input
-                  label="Password"
-                  placeholder="Enter your password"
+                  label={t('auth_password')}
+                  placeholder={t('auth_password')}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
-                  accessibilityLabel="Password input"
+                  accessibilityLabel={t('auth_password')}
                 />
 
                 <Pressable 
-                  style={{ alignSelf: 'flex-end' }}
+                  style={{ alignSelf: isRTL ? 'flex-start' : 'flex-end' }}
                   onPress={() => setMode('forgot-email')}
-                  accessibilityLabel="Forgot password"
+                  accessibilityLabel={t('auth_forgot_password')}
                   accessibilityRole="button"
                 >
                   <Text
@@ -330,12 +332,12 @@ export default function LoginScreen() {
                       fontWeight: '500',
                     }}
                   >
-                    Forgot Password?
+                    {t('auth_forgot_password')}
                   </Text>
                 </Pressable>
 
                 <Button
-                  title="Sign In"
+                  title={t('auth_sign_in')}
                   onPress={handleLogin}
                   loading={isLoading}
                   fullWidth
@@ -357,7 +359,7 @@ export default function LoginScreen() {
                       fontSize: 14,
                     }}
                   >
-                    or continue with
+                    {t('auth_or_continue_with')}
                   </Text>
                   <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
                 </View>
@@ -376,12 +378,12 @@ export default function LoginScreen() {
                       borderColor: theme.border,
                       backgroundColor: theme.card,
                     }}
-                    accessibilityLabel="Sign in with Google"
+                    accessibilityLabel={t('auth_google')}
                     accessibilityRole="button"
                   >
                     <Ionicons name="logo-google" size={20} color="#DB4437" />
                     <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
-                      Google
+                      {t('auth_google')}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -397,12 +399,12 @@ export default function LoginScreen() {
                       borderColor: theme.border,
                       backgroundColor: theme.card,
                     }}
-                    accessibilityLabel="Sign in with Apple"
+                    accessibilityLabel={t('auth_apple')}
                     accessibilityRole="button"
                   >
                     <Ionicons name="logo-apple" size={20} color={theme.text} />
                     <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
-                      Apple
+                      {t('auth_apple')}
                     </Text>
                   </Pressable>
                 </View>
@@ -415,12 +417,12 @@ export default function LoginScreen() {
                   }}
                 >
                   <Text style={{ color: theme.textSecondary }}>
-                    Don't have an account?{' '}
+                    {t('auth_no_account')}{' '}
                   </Text>
                   <Link href="/(auth)/signup" asChild>
-                    <Pressable accessibilityLabel="Sign up" accessibilityRole="button">
+                    <Pressable accessibilityLabel={t('auth_sign_up')} accessibilityRole="button">
                       <Text style={{ color: theme.primary, fontWeight: '600' }}>
-                        Sign Up
+                        {t('auth_sign_up')}
                       </Text>
                     </Pressable>
                   </Link>
@@ -431,18 +433,18 @@ export default function LoginScreen() {
             {mode === 'forgot-email' && (
               <>
                 <Input
-                  label="Email Address"
-                  placeholder="Enter your email"
+                  label={t('auth_email')}
+                  placeholder={t('auth_email')}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   icon="mail-outline"
-                  accessibilityLabel="Email input for password reset"
+                  accessibilityLabel={t('auth_email')}
                 />
 
                 <Button
-                  title="Send Reset Code"
+                  title={t('auth_send_code')}
                   onPress={handleSendResetCode}
                   loading={isProcessing}
                   fullWidth
@@ -454,19 +456,19 @@ export default function LoginScreen() {
             {mode === 'forgot-code' && (
               <>
                 <Input
-                  label="Verification Code"
-                  placeholder="Enter 6-digit code"
+                  label={t('auth_verification_code')}
+                  placeholder={t('auth_enter_6_digit')}
                   value={resetCode}
                   onChangeText={setResetCode}
                   keyboardType="number-pad"
                   maxLength={6}
                   icon="shield-checkmark-outline"
-                  accessibilityLabel="Verification code input"
+                  accessibilityLabel={t('auth_verification_code')}
                 />
 
                 <Pressable 
                   onPress={handleSendResetCode}
-                  accessibilityLabel="Resend verification code"
+                  accessibilityLabel={t('auth_resend')}
                   accessibilityRole="button"
                 >
                   <Text
@@ -477,12 +479,12 @@ export default function LoginScreen() {
                       textAlign: 'center',
                     }}
                   >
-                    Didn't receive the code? Resend
+                    {t('auth_didnt_receive')} {t('auth_resend')}
                   </Text>
                 </Pressable>
 
                 <Button
-                  title="Verify Code"
+                  title={t('auth_verify_code')}
                   onPress={handleVerifyCode}
                   loading={isProcessing}
                   fullWidth
@@ -494,27 +496,27 @@ export default function LoginScreen() {
             {mode === 'forgot-password' && (
               <>
                 <Input
-                  label="New Password"
-                  placeholder="Enter new password"
+                  label={t('auth_new_password')}
+                  placeholder={t('auth_new_password')}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
-                  accessibilityLabel="New password input"
+                  accessibilityLabel={t('auth_new_password')}
                 />
 
                 <Input
-                  label="Confirm Password"
-                  placeholder="Re-enter new password"
+                  label={t('auth_confirm_password')}
+                  placeholder={t('auth_confirm_password')}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
-                  accessibilityLabel="Confirm password input"
+                  accessibilityLabel={t('auth_confirm_password')}
                 />
 
                 <Button
-                  title="Reset Password"
+                  title={t('auth_reset_password')}
                   onPress={handleResetPassword}
                   loading={isProcessing}
                   fullWidth
@@ -551,12 +553,12 @@ export default function LoginScreen() {
                       textAlign: 'center',
                     }}
                   >
-                    You can now sign in with your new password
+                    {t('auth_can_sign_in')}
                   </Text>
                 </View>
 
                 <Button
-                  title="Back to Login"
+                  title={t('auth_back_to_login')}
                   onPress={handleBackToLogin}
                   fullWidth
                   size="lg"
