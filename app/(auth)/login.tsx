@@ -16,8 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Toast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/hooks/useToast';
 
 const { height } = Dimensions.get('window');
 
@@ -28,6 +30,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { login, isLoading, authError } = useAuthStore();
+  const { toast, hideToast, error: showError, success: showSuccess } = useToast();
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -65,16 +68,23 @@ export default function LoginScreen() {
     
     if (!email.trim()) {
       setLocalError('Please enter your email');
+      showError('Please enter your email');
       return;
     }
     if (!password) {
       setLocalError('Please enter your password');
+      showError('Please enter your password');
       return;
     }
 
     const success = await login(email, password);
     if (success) {
-      router.replace('/(tabs)');
+      showSuccess('Welcome back!');
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 500);
+    } else {
+      showError(authError || 'Login failed. Please try again.');
     }
   };
 
@@ -83,12 +93,14 @@ export default function LoginScreen() {
     
     if (!email.trim()) {
       setLocalError('Please enter your email');
+      showError('Please enter your email');
       return;
     }
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsProcessing(false);
+    showSuccess('Reset code sent to your email');
     setMode('forgot-code');
   };
 
@@ -97,12 +109,14 @@ export default function LoginScreen() {
     
     if (!resetCode.trim() || resetCode.length !== 6) {
       setLocalError('Please enter the 6-digit code');
+      showError('Please enter the 6-digit code');
       return;
     }
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsProcessing(false);
+    showSuccess('Code verified successfully');
     setMode('forgot-password');
   };
 
@@ -111,17 +125,20 @@ export default function LoginScreen() {
     
     if (newPassword.length < 6) {
       setLocalError('Password must be at least 6 characters');
+      showError('Password must be at least 6 characters');
       return;
     }
     
     if (newPassword !== confirmPassword) {
       setLocalError('Passwords do not match');
+      showError('Passwords do not match');
       return;
     }
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsProcessing(false);
+    showSuccess('Password reset successfully');
     setMode('forgot-success');
   };
 
@@ -169,10 +186,18 @@ export default function LoginScreen() {
   };
 
   const headerContent = getHeaderContent();
-  const displayError = localError || authError;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onDismiss={hideToast}
+        />
+      )}
+
       <ImageBackground
         source={{ uri: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800' }}
         style={{ height: height * 0.35 }}
@@ -193,13 +218,15 @@ export default function LoginScreen() {
                 position: 'absolute',
                 top: insets.top + 12,
                 left: 16,
-                width: 40,
-                height: 40,
-                borderRadius: 20,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
+              accessibilityLabel="Go back to login"
+              accessibilityRole="button"
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
@@ -277,6 +304,7 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   icon="mail-outline"
+                  accessibilityLabel="Email input"
                 />
 
                 <Input
@@ -286,11 +314,14 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
+                  accessibilityLabel="Password input"
                 />
 
                 <Pressable 
                   style={{ alignSelf: 'flex-end' }}
                   onPress={() => setMode('forgot-email')}
+                  accessibilityLabel="Forgot password"
+                  accessibilityRole="button"
                 >
                   <Text
                     style={{
@@ -302,22 +333,6 @@ export default function LoginScreen() {
                     Forgot Password?
                   </Text>
                 </Pressable>
-
-                {displayError && (
-                  <View
-                    style={{
-                      backgroundColor: theme.errorLight,
-                      padding: 12,
-                      borderRadius: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons name="alert-circle" size={20} color={theme.error} />
-                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
-                  </View>
-                )}
 
                 <Button
                   title="Sign In"
@@ -361,6 +376,8 @@ export default function LoginScreen() {
                       borderColor: theme.border,
                       backgroundColor: theme.card,
                     }}
+                    accessibilityLabel="Sign in with Google"
+                    accessibilityRole="button"
                   >
                     <Ionicons name="logo-google" size={20} color="#DB4437" />
                     <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
@@ -380,6 +397,8 @@ export default function LoginScreen() {
                       borderColor: theme.border,
                       backgroundColor: theme.card,
                     }}
+                    accessibilityLabel="Sign in with Apple"
+                    accessibilityRole="button"
                   >
                     <Ionicons name="logo-apple" size={20} color={theme.text} />
                     <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text }}>
@@ -399,7 +418,7 @@ export default function LoginScreen() {
                     Don't have an account?{' '}
                   </Text>
                   <Link href="/(auth)/signup" asChild>
-                    <Pressable>
+                    <Pressable accessibilityLabel="Sign up" accessibilityRole="button">
                       <Text style={{ color: theme.primary, fontWeight: '600' }}>
                         Sign Up
                       </Text>
@@ -419,23 +438,8 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   icon="mail-outline"
+                  accessibilityLabel="Email input for password reset"
                 />
-
-                {displayError && (
-                  <View
-                    style={{
-                      backgroundColor: theme.errorLight,
-                      padding: 12,
-                      borderRadius: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons name="alert-circle" size={20} color={theme.error} />
-                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
-                  </View>
-                )}
 
                 <Button
                   title="Send Reset Code"
@@ -457,9 +461,14 @@ export default function LoginScreen() {
                   keyboardType="number-pad"
                   maxLength={6}
                   icon="shield-checkmark-outline"
+                  accessibilityLabel="Verification code input"
                 />
 
-                <Pressable onPress={handleSendResetCode}>
+                <Pressable 
+                  onPress={handleSendResetCode}
+                  accessibilityLabel="Resend verification code"
+                  accessibilityRole="button"
+                >
                   <Text
                     style={{
                       fontSize: 14,
@@ -471,22 +480,6 @@ export default function LoginScreen() {
                     Didn't receive the code? Resend
                   </Text>
                 </Pressable>
-
-                {displayError && (
-                  <View
-                    style={{
-                      backgroundColor: theme.errorLight,
-                      padding: 12,
-                      borderRadius: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons name="alert-circle" size={20} color={theme.error} />
-                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
-                  </View>
-                )}
 
                 <Button
                   title="Verify Code"
@@ -507,6 +500,7 @@ export default function LoginScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
+                  accessibilityLabel="New password input"
                 />
 
                 <Input
@@ -516,23 +510,8 @@ export default function LoginScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
+                  accessibilityLabel="Confirm password input"
                 />
-
-                {displayError && (
-                  <View
-                    style={{
-                      backgroundColor: theme.errorLight,
-                      padding: 12,
-                      borderRadius: 8,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons name="alert-circle" size={20} color={theme.error} />
-                    <Text style={{ color: theme.error, flex: 1 }}>{displayError}</Text>
-                  </View>
-                )}
 
                 <Button
                   title="Reset Password"
