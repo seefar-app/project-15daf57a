@@ -25,8 +25,9 @@ export function Badge({ label, variant = 'default', size = 'md', style }: BadgeP
     md: { paddingH: 12, paddingV: 6, fontSize: 12 },
   };
 
-  const colors = variantColors[variant];
-  const sizes = sizeStyles[size];
+  // Fix: Add fallback to 'default' if variant is invalid
+  const colors = variantColors[variant] || variantColors.default;
+  const sizes = sizeStyles[size] || sizeStyles.md;
 
   return (
     <View
