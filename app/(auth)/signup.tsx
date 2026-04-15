@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const { height } = Dimensions.get('window');
 
@@ -25,6 +26,7 @@ export default function SignupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { t, isRTL } = useTranslation();
   const { signup, isLoading, authError } = useAuthStore();
 
   const [name, setName] = useState('');
@@ -56,19 +58,19 @@ export default function SignupScreen() {
     setLocalError('');
 
     if (!name.trim()) {
-      setLocalError('Please enter your name');
+      setLocalError(t('validation_name_required') || 'Please enter your name');
       return;
     }
     if (!email.trim()) {
-      setLocalError('Please enter your email');
+      setLocalError(t('validation_email_required'));
       return;
     }
     if (!phone.trim()) {
-      setLocalError('Please enter your phone number');
+      setLocalError(t('validation_phone_required') || 'Please enter your phone number');
       return;
     }
     if (password.length < 6) {
-      setLocalError('Password must be at least 6 characters');
+      setLocalError(t('validation_password_min'));
       return;
     }
 
@@ -100,7 +102,7 @@ export default function SignupScreen() {
             style={{
               position: 'absolute',
               top: insets.top + 12,
-              left: 16,
+              [isRTL ? 'right' : 'left']: 16,
               width: 40,
               height: 40,
               borderRadius: 20,
@@ -108,8 +110,10 @@ export default function SignupScreen() {
               justifyContent: 'center',
               alignItems: 'center',
             }}
+            accessibilityLabel={t('common_back')}
+            accessibilityRole="button"
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color="#fff" />
           </Pressable>
 
           <Animated.View
@@ -125,7 +129,7 @@ export default function SignupScreen() {
                 color: '#fff',
               }}
             >
-              Create Account
+              {t('auth_create_account') || 'Create Account'}
             </Text>
             <Text
               style={{
@@ -134,7 +138,7 @@ export default function SignupScreen() {
                 marginTop: 6,
               }}
             >
-              Join FoodDash and start ordering
+              {t('auth_join_subtitle') || 'Join FoodDash and start ordering'}
             </Text>
           </Animated.View>
         </LinearGradient>
@@ -160,40 +164,44 @@ export default function SignupScreen() {
             }}
           >
             <Input
-              label="Full Name"
-              placeholder="Enter your name"
+              label={t('auth_full_name') || 'Full Name'}
+              placeholder={t('auth_enter_name') || 'Enter your name'}
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
               icon="person-outline"
+              accessibilityLabel={t('auth_full_name') || 'Full Name'}
             />
 
             <Input
-              label="Email"
-              placeholder="Enter your email"
+              label={t('auth_email')}
+              placeholder={t('auth_enter_email') || 'Enter your email'}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               icon="mail-outline"
+              accessibilityLabel={t('auth_email')}
             />
 
             <Input
-              label="Phone Number"
-              placeholder="Enter your phone number"
+              label={t('auth_phone') || 'Phone Number'}
+              placeholder={t('auth_enter_phone') || 'Enter your phone number'}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
               icon="call-outline"
+              accessibilityLabel={t('auth_phone') || 'Phone Number'}
             />
 
             <Input
-              label="Password"
-              placeholder="Create a password"
+              label={t('auth_password')}
+              placeholder={t('auth_create_password') || 'Create a password'}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               icon="lock-closed-outline"
+              accessibilityLabel={t('auth_password')}
             />
 
             {displayError && (
@@ -220,13 +228,18 @@ export default function SignupScreen() {
                 marginTop: 8,
               }}
             >
-              By signing up, you agree to our{' '}
-              <Text style={{ color: theme.primary }}>Terms of Service</Text> and{' '}
-              <Text style={{ color: theme.primary }}>Privacy Policy</Text>
+              {t('auth_terms_prefix') || 'By signing up, you agree to our'}{' '}
+              <Text style={{ color: theme.primary }}>
+                {t('auth_terms') || 'Terms of Service'}
+              </Text>{' '}
+              {t('auth_and') || 'and'}{' '}
+              <Text style={{ color: theme.primary }}>
+                {t('auth_privacy') || 'Privacy Policy'}
+              </Text>
             </Text>
 
             <Button
-              title="Create Account"
+              title={t('auth_create_account') || 'Create Account'}
               onPress={handleSignup}
               loading={isLoading}
               fullWidth
@@ -242,12 +255,12 @@ export default function SignupScreen() {
               }}
             >
               <Text style={{ color: theme.textSecondary }}>
-                Already have an account?{' '}
+                {t('auth_have_account') || 'Already have an account?'}{' '}
               </Text>
               <Link href="/(auth)/login" asChild>
-                <Pressable>
+                <Pressable accessibilityLabel={t('auth_sign_in')} accessibilityRole="button">
                   <Text style={{ color: theme.primary, fontWeight: '600' }}>
-                    Sign In
+                    {t('auth_sign_in')}
                   </Text>
                 </Pressable>
               </Link>
