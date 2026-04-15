@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Restaurant, MenuItem, CartItem, Order, OrderStatus, Driver, PromoCode, Review } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 interface StoreState {
   restaurants: Restaurant[];
@@ -33,313 +34,40 @@ interface StoreState {
   getRestaurantById: (id: string) => Restaurant | undefined;
 }
 
-const mockRestaurants: Restaurant[] = [
-  {
-    id: '1',
-    name: 'Ocean Sushi Bar',
-    image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800',
-    cuisine: ['Japanese', 'Sushi'],
-    rating: 4.8,
-    reviewCount: 324,
-    deliveryTime: '25-35 min',
-    deliveryFee: 2.99,
-    minOrder: 15,
-    address: '123 Seaside Blvd',
-    hours: '11:00 AM - 10:00 PM',
-    coordinates: { latitude: 25.7617, longitude: -80.1918 },
-    menu: [
-      {
-        id: '1-1',
-        name: 'Dragon Roll',
-        description: 'Shrimp tempura, avocado, cucumber topped with eel and special sauce',
-        image: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400',
-        price: 16.99,
-        category: 'Specialty Rolls',
-        customizations: [],
-        vegetarian: false,
-        vegan: false,
-      },
-      {
-        id: '1-2',
-        name: 'Salmon Nigiri',
-        description: 'Fresh Atlantic salmon over pressed rice',
-        image: 'https://images.unsplash.com/photo-1553621042-f6e147245754?w=400',
-        price: 8.99,
-        category: 'Nigiri',
-        customizations: [],
-        vegetarian: false,
-        vegan: false,
-      },
-      {
-        id: '1-3',
-        name: 'Miso Soup',
-        description: 'Traditional Japanese soup with tofu and seaweed',
-        image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400',
-        price: 4.99,
-        category: 'Soups',
-        customizations: [],
-        vegetarian: true,
-        vegan: true,
-      },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Bella Italia',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
-    cuisine: ['Italian', 'Pizza'],
-    rating: 4.6,
-    reviewCount: 512,
-    deliveryTime: '30-40 min',
-    deliveryFee: 1.99,
-    minOrder: 12,
-    address: '456 Main Street',
-    hours: '10:00 AM - 11:00 PM',
-    coordinates: { latitude: 25.7700, longitude: -80.1850 },
-    menu: [
-      {
-        id: '2-1',
-        name: 'Margherita Pizza',
-        description: 'Fresh mozzarella, tomatoes, basil on hand-tossed dough',
-        image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400',
-        price: 14.99,
-        category: 'Pizza',
-        customizations: [
-          {
-            id: 'size',
-            name: 'Size',
-            options: [
-              { id: 'small', name: 'Small (10")', price: 0 },
-              { id: 'medium', name: 'Medium (12")', price: 3 },
-              { id: 'large', name: 'Large (14")', price: 6 },
-            ],
-            required: true,
-            maxSelections: 1,
-          },
-        ],
-        vegetarian: true,
-        vegan: false,
-      },
-      {
-        id: '2-2',
-        name: 'Spaghetti Carbonara',
-        description: 'Classic pasta with eggs, cheese, pancetta, and black pepper',
-        image: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400',
-        price: 16.99,
-        category: 'Pasta',
-        customizations: [],
-        vegetarian: false,
-        vegan: false,
-      },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Taco Loco',
-    image: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800',
-    cuisine: ['Mexican', 'Tacos'],
-    rating: 4.7,
-    reviewCount: 289,
-    deliveryTime: '20-30 min',
-    deliveryFee: 1.49,
-    minOrder: 10,
-    address: '789 Fiesta Ave',
-    hours: '11:00 AM - 12:00 AM',
-    coordinates: { latitude: 25.7550, longitude: -80.2000 },
-    menu: [
-      {
-        id: '3-1',
-        name: 'Street Tacos',
-        description: 'Three soft corn tortillas with your choice of meat, onions, and cilantro',
-        image: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=400',
-        price: 9.99,
-        category: 'Tacos',
-        customizations: [
-          {
-            id: 'protein',
-            name: 'Protein',
-            options: [
-              { id: 'carnitas', name: 'Carnitas', price: 0 },
-              { id: 'asada', name: 'Carne Asada', price: 1 },
-              { id: 'pollo', name: 'Chicken', price: 0 },
-            ],
-            required: true,
-            maxSelections: 1,
-          },
-        ],
-        vegetarian: false,
-        vegan: false,
-      },
-      {
-        id: '3-2',
-        name: 'Guacamole & Chips',
-        description: 'Fresh made guacamole with crispy tortilla chips',
-        image: 'https://images.unsplash.com/photo-1600335895229-6e75511892c8?w=400',
-        price: 7.99,
-        category: 'Appetizers',
-        customizations: [],
-        vegetarian: true,
-        vegan: true,
-      },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Burger Palace',
-    image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800',
-    cuisine: ['American', 'Burgers'],
-    rating: 4.5,
-    reviewCount: 678,
-    deliveryTime: '25-35 min',
-    deliveryFee: 2.49,
-    minOrder: 12,
-    address: '321 Grill Street',
-    hours: '11:00 AM - 11:00 PM',
-    coordinates: { latitude: 25.7680, longitude: -80.1880 },
-    menu: [
-      {
-        id: '4-1',
-        name: 'Classic Cheeseburger',
-        description: 'Angus beef patty with American cheese, lettuce, tomato, and special sauce',
-        image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400',
-        price: 12.99,
-        category: 'Burgers',
-        customizations: [
-          {
-            id: 'doneness',
-            name: 'How would you like it?',
-            options: [
-              { id: 'medium', name: 'Medium', price: 0 },
-              { id: 'well', name: 'Well Done', price: 0 },
-            ],
-            required: false,
-            maxSelections: 1,
-          },
-        ],
-        vegetarian: false,
-        vegan: false,
-      },
-      {
-        id: '4-2',
-        name: 'Loaded Fries',
-        description: 'Crispy fries topped with cheese, bacon, and green onions',
-        image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400',
-        price: 8.99,
-        category: 'Sides',
-        customizations: [],
-        vegetarian: false,
-        vegan: false,
-      },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Thai Orchid',
-    image: 'https://images.unsplash.com/photo-1562565652-a0d8f0c59eb4?w=800',
-    cuisine: ['Thai', 'Asian'],
-    rating: 4.9,
-    reviewCount: 198,
-    deliveryTime: '30-45 min',
-    deliveryFee: 2.99,
-    minOrder: 18,
-    address: '555 Spice Lane',
-    hours: '11:30 AM - 10:00 PM',
-    coordinates: { latitude: 25.7590, longitude: -80.1950 },
-    menu: [
-      {
-        id: '5-1',
-        name: 'Pad Thai',
-        description: 'Stir-fried rice noodles with shrimp, peanuts, and tamarind sauce',
-        image: 'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=400',
-        price: 15.99,
-        category: 'Noodles',
-        customizations: [
-          {
-            id: 'spice',
-            name: 'Spice Level',
-            options: [
-              { id: 'mild', name: 'Mild', price: 0 },
-              { id: 'medium', name: 'Medium', price: 0 },
-              { id: 'hot', name: 'Hot', price: 0 },
-            ],
-            required: false,
-            maxSelections: 1,
-          },
-        ],
-        vegetarian: false,
-        vegan: false,
-      },
-      {
-        id: '5-2',
-        name: 'Green Curry',
-        description: 'Creamy coconut curry with vegetables and your choice of protein',
-        image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=400',
-        price: 16.99,
-        category: 'Curries',
-        customizations: [],
-        vegetarian: false,
-        vegan: false,
-      },
-    ],
-  },
-  {
-    id: '6',
-    name: 'Mediterranean Delight',
-    image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800',
-    cuisine: ['Mediterranean', 'Greek'],
-    rating: 4.7,
-    reviewCount: 156,
-    deliveryTime: '25-35 min',
-    deliveryFee: 1.99,
-    minOrder: 14,
-    address: '888 Olive Court',
-    hours: '10:00 AM - 9:00 PM',
-    coordinates: { latitude: 25.7630, longitude: -80.1900 },
-    menu: [
-      {
-        id: '6-1',
-        name: 'Chicken Shawarma Plate',
-        description: 'Marinated chicken with rice, hummus, salad, and pita bread',
-        image: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=400',
-        price: 14.99,
-        category: 'Plates',
-        customizations: [],
-        vegetarian: false,
-        vegan: false,
-      },
-      {
-        id: '6-2',
-        name: 'Falafel Wrap',
-        description: 'Crispy falafel with tahini, pickles, and fresh vegetables',
-        image: 'https://images.unsplash.com/photo-1593001874117-c99c800e3eb5?w=400',
-        price: 11.99,
-        category: 'Wraps',
-        customizations: [],
-        vegetarian: true,
-        vegan: true,
-      },
-    ],
-  },
-];
+const transformRestaurantFromDB = (dbRestaurant: any, menuItems: MenuItem[] = []): Restaurant => {
+  return {
+    id: dbRestaurant.id,
+    name: dbRestaurant.name,
+    image: dbRestaurant.logo_url || 'https://via.placeholder.com/400',
+    cuisine: [],
+    rating: parseFloat(dbRestaurant.rating) || 0,
+    reviewCount: 0,
+    deliveryTime: `${dbRestaurant.delivery_time_min || 0}-${dbRestaurant.delivery_time_max || 0} min`,
+    deliveryFee: parseFloat(dbRestaurant.delivery_fee) || 0,
+    minOrder: parseFloat(dbRestaurant.min_order_amount) || 0,
+    address: '',
+    hours: '10:00 AM - 10:00 PM',
+    coordinates: {
+      latitude: parseFloat(dbRestaurant.latitude) || 0,
+      longitude: parseFloat(dbRestaurant.longitude) || 0,
+    },
+    menu: menuItems,
+  };
+};
 
-const mockPromos: PromoCode[] = [
-  {
-    id: '1',
-    code: 'WELCOME20',
-    discount: 20,
-    discountType: 'percentage',
-    minOrder: 15,
-    expiresAt: new Date('2025-12-31'),
-  },
-  {
-    id: '2',
-    code: 'FREESHIP',
-    discount: 5,
-    discountType: 'fixed',
-    minOrder: 20,
-    expiresAt: new Date('2025-06-30'),
-  },
-];
+const transformMenuItemFromDB = (dbItem: any): MenuItem => {
+  return {
+    id: dbItem.id,
+    name: dbItem.name,
+    description: dbItem.description || '',
+    image: dbItem.image_url || 'https://via.placeholder.com/400',
+    price: parseFloat(dbItem.price),
+    category: 'General',
+    customizations: [],
+    vegetarian: false,
+    vegan: false,
+  };
+};
 
 export const useStore = create<StoreState>((set, get) => ({
   restaurants: [],
@@ -357,13 +85,37 @@ export const useStore = create<StoreState>((set, get) => ({
   fetchRestaurants: async () => {
     try {
       set({ isLoading: true, error: null });
-      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const { data: restaurants, error: restaurantsError } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('is_open', true);
+
+      if (restaurantsError) throw restaurantsError;
+
+      const restaurantsWithMenus: Restaurant[] = [];
+
+      for (const restaurant of restaurants || []) {
+        const { data: menuItems, error: menuError } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('restaurant_id', restaurant.id)
+          .eq('is_available', true);
+
+        if (menuError) throw menuError;
+
+        const transformedMenu = (menuItems || []).map(transformMenuItemFromDB);
+        const transformedRestaurant = transformRestaurantFromDB(restaurant, transformedMenu);
+        restaurantsWithMenus.push(transformedRestaurant);
+      }
+
       set({
-        restaurants: mockRestaurants,
-        featuredRestaurants: mockRestaurants.slice(0, 3),
+        restaurants: restaurantsWithMenus,
+        featuredRestaurants: restaurantsWithMenus.slice(0, 3),
         isLoading: false,
       });
     } catch (error) {
+      console.error('Error fetching restaurants:', error);
       set({ error: 'Failed to fetch restaurants', isLoading: false });
     }
   },
@@ -449,17 +201,42 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   applyPromoCode: async (code: string) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const promo = mockPromos.find(p => p.code.toUpperCase() === code.toUpperCase());
-    
-    if (promo && new Date() < promo.expiresAt) {
+    try {
+      const { data: promos, error } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', code.toUpperCase())
+        .single();
+
+      if (error || !promos) {
+        return false;
+      }
+
+      const expiresAt = new Date(promos.expires_at);
+      if (new Date() > expiresAt) {
+        return false;
+      }
+
       const { getCartTotal } = get();
-      if (getCartTotal() >= promo.minOrder) {
+      const cartTotal = getCartTotal();
+      
+      if (cartTotal >= (promos.min_order || 0)) {
+        const promo: PromoCode = {
+          id: promos.id,
+          code: promos.code,
+          discount: promos.discount,
+          discountType: promos.discount_type,
+          minOrder: promos.min_order || 0,
+          expiresAt,
+        };
         set({ appliedPromo: promo });
         return true;
       }
+      return false;
+    } catch (error) {
+      console.error('Error applying promo code:', error);
+      return false;
     }
-    return false;
   },
 
   removePromoCode: () => {
@@ -467,92 +244,155 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   createOrder: async (addressId, paymentMethod) => {
-    const { cart, selectedRestaurant, getCartTotal, appliedPromo } = get();
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const { cart, selectedRestaurant, getCartTotal } = get();
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-    const mockDriver: Driver = {
-      id: 'd1',
-      name: 'Michael Chen',
-      avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-      phone: '+1234567890',
-      rating: 4.9,
-      vehicleType: 'Motorcycle',
-      vehiclePlate: 'ABC-1234',
-      coordinates: { latitude: 25.7650, longitude: -80.1920 },
-    };
+      const orderTotal = getCartTotal() + (selectedRestaurant?.deliveryFee || 0);
 
-    const newOrder: Order = {
-      id: Date.now().toString(),
-      userId: '1',
-      restaurantId: selectedRestaurant?.id || '1',
-      restaurant: selectedRestaurant || mockRestaurants[0],
-      items: [...cart],
-      totalPrice: getCartTotal() + (selectedRestaurant?.deliveryFee || 0),
-      status: 'pending',
-      address: {
-        id: addressId,
-        label: 'Home',
-        street: '123 Ocean Drive',
-        city: 'Miami',
-        pincode: '33139',
-        coordinates: { latitude: 25.7617, longitude: -80.1918 },
-        isDefault: true,
-      },
-      driver: null,
-      createdAt: new Date(),
-      estimatedDelivery: new Date(Date.now() + 45 * 60 * 1000),
-      actualDelivery: null,
-      paymentMethod,
-    };
+      const { data: newOrderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          restaurant_id: selectedRestaurant?.id,
+          address_id: addressId,
+          status: 'pending',
+          total_amount: orderTotal,
+          delivery_fee: selectedRestaurant?.deliveryFee || 0,
+          estimated_delivery_time: parseInt(selectedRestaurant?.deliveryTime.split('-')[1] || '30'),
+        })
+        .select()
+        .single();
 
-    set(state => ({
-      orders: [newOrder, ...state.orders],
-      activeOrder: newOrder,
-      cart: [],
-      appliedPromo: null,
-    }));
+      if (orderError) throw orderError;
 
-    setTimeout(() => {
+      for (const cartItem of cart) {
+        const { error: itemError } = await supabase
+          .from('order_items')
+          .insert({
+            order_id: newOrderData.id,
+            menu_item_id: cartItem.menuItem.id,
+            quantity: cartItem.quantity,
+            price: cartItem.menuItem.price,
+          });
+
+        if (itemError) throw itemError;
+      }
+
+      const newOrder: Order = {
+        id: newOrderData.id,
+        userId: user.id,
+        restaurantId: selectedRestaurant?.id || '',
+        restaurant: selectedRestaurant || ({} as Restaurant),
+        items: [...cart],
+        totalPrice: orderTotal,
+        status: 'pending' as OrderStatus,
+        address: {
+          id: addressId,
+          label: 'Delivery Address',
+          street: '',
+          city: '',
+          pincode: '',
+          coordinates: { latitude: 0, longitude: 0 },
+          isDefault: false,
+        },
+        driver: null,
+        createdAt: new Date(),
+        estimatedDelivery: new Date(Date.now() + (parseInt(selectedRestaurant?.deliveryTime.split('-')[1] || '30') * 60 * 1000)),
+        actualDelivery: null,
+        paymentMethod,
+      };
+
       set(state => ({
-        orders: state.orders.map(o =>
-          o.id === newOrder.id ? { ...o, status: 'confirmed' as OrderStatus } : o
-        ),
-        activeOrder: state.activeOrder?.id === newOrder.id
-          ? { ...state.activeOrder, status: 'confirmed' as OrderStatus }
-          : state.activeOrder,
+        orders: [newOrder, ...state.orders],
+        activeOrder: newOrder,
+        cart: [],
+        appliedPromo: null,
       }));
-    }, 3000);
 
-    setTimeout(() => {
-      set(state => ({
-        orders: state.orders.map(o =>
-          o.id === newOrder.id ? { ...o, status: 'preparing' as OrderStatus } : o
-        ),
-        activeOrder: state.activeOrder?.id === newOrder.id
-          ? { ...state.activeOrder, status: 'preparing' as OrderStatus }
-          : state.activeOrder,
-      }));
-    }, 8000);
-
-    setTimeout(() => {
-      set(state => ({
-        orders: state.orders.map(o =>
-          o.id === newOrder.id ? { ...o, status: 'picked_up' as OrderStatus, driver: mockDriver } : o
-        ),
-        activeOrder: state.activeOrder?.id === newOrder.id
-          ? { ...state.activeOrder, status: 'picked_up' as OrderStatus, driver: mockDriver }
-          : state.activeOrder,
-      }));
-    }, 15000);
-
-    return newOrder;
+      return newOrder;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
   },
 
   fetchOrders: async () => {
-    set({ isLoading: true });
-    await new Promise(resolve => setTimeout(resolve, 500));
-    set({ isLoading: false });
+    try {
+      set({ isLoading: true });
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        set({ isLoading: false });
+        return;
+      }
+
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const transformedOrders: Order[] = [];
+      for (const order of orders || []) {
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', order.id);
+
+        const cartItems: CartItem[] = (items || []).map(item => ({
+          id: item.id,
+          menuItem: {
+            id: item.menu_item_id,
+            name: '',
+            description: '',
+            image: '',
+            price: parseFloat(item.price),
+            category: '',
+            customizations: [],
+            vegetarian: false,
+            vegan: false,
+          },
+          quantity: item.quantity,
+          selectedCustomizations: [],
+          specialInstructions: '',
+          totalPrice: parseFloat(item.price) * item.quantity,
+        }));
+
+        transformedOrders.push({
+          id: order.id,
+          userId: order.user_id,
+          restaurantId: order.restaurant_id,
+          restaurant: {} as Restaurant,
+          items: cartItems,
+          totalPrice: parseFloat(order.total_amount),
+          status: order.status as OrderStatus,
+          address: {
+            id: order.address_id,
+            label: '',
+            street: '',
+            city: '',
+            pincode: '',
+            coordinates: { latitude: 0, longitude: 0 },
+            isDefault: false,
+          },
+          driver: null,
+          createdAt: new Date(order.created_at),
+          estimatedDelivery: new Date(order.created_at),
+          actualDelivery: null,
+          paymentMethod: '',
+        });
+      }
+
+      set({ orders: transformedOrders, isLoading: false });
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      set({ isLoading: false });
+    }
   },
 
   setActiveOrder: (order) => {

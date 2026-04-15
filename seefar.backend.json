@@ -1,0 +1,479 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-04-15T14:43:44.488Z",
+  "schema": {
+    "sql": "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";\n\nCREATE TABLE IF NOT EXISTS public.users (\n  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,\n  email TEXT NOT NULL UNIQUE,\n  phone TEXT,\n  first_name TEXT,\n  last_name TEXT,\n  avatar_url TEXT,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.cuisines (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  name TEXT NOT NULL UNIQUE,\n  icon TEXT,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.restaurants (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  name TEXT NOT NULL,\n  description TEXT,\n  logo_url TEXT,\n  rating DECIMAL(3,2) DEFAULT 0,\n  delivery_time_min INTEGER,\n  delivery_time_max INTEGER,\n  delivery_fee DECIMAL(10,2),\n  min_order_amount DECIMAL(10,2),\n  is_open BOOLEAN DEFAULT true,\n  latitude DECIMAL(10,8),\n  longitude DECIMAL(11,8),\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.restaurant_cuisines (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,\n  cuisine_id UUID NOT NULL REFERENCES public.cuisines(id) ON DELETE CASCADE,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  UNIQUE(restaurant_id, cuisine_id)\n);\n\nCREATE TABLE IF NOT EXISTS public.menu_items (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  description TEXT,\n  price DECIMAL(10,2) NOT NULL,\n  image_url TEXT,\n  is_available BOOLEAN DEFAULT true,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.addresses (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,\n  label TEXT,\n  street TEXT NOT NULL,\n  city TEXT NOT NULL,\n  postal_code TEXT,\n  latitude DECIMAL(10,8),\n  longitude DECIMAL(11,8),\n  is_default BOOLEAN DEFAULT false,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.favorites (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,\n  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  UNIQUE(user_id, restaurant_id)\n);\n\nCREATE TABLE IF NOT EXISTS public.payment_methods (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,\n  card_last_four TEXT NOT NULL,\n  card_brand TEXT NOT NULL,\n  is_default BOOLEAN DEFAULT false,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.orders (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,\n  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,\n  address_id UUID NOT NULL REFERENCES public.addresses(id) ON DELETE RESTRICT,\n  status TEXT NOT NULL DEFAULT 'pending',\n  total_amount DECIMAL(10,2) NOT NULL,\n  delivery_fee DECIMAL(10,2),\n  estimated_delivery_time INTEGER,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.order_items (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,\n  menu_item_id UUID NOT NULL REFERENCES public.menu_items(id) ON DELETE RESTRICT,\n  quantity INTEGER NOT NULL DEFAULT 1,\n  price DECIMAL(10,2) NOT NULL,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.reviews (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,\n  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,\n  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),\n  comment TEXT,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS public.delivery_zones (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,\n  latitude DECIMAL(10,8) NOT NULL,\n  longitude DECIMAL(11,8) NOT NULL,\n  radius_km DECIMAL(5,2) NOT NULL,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n);\n\nCREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);\nCREATE INDEX IF NOT EXISTS idx_restaurants_name ON public.restaurants(name);\nCREATE INDEX IF NOT EXISTS idx_menu_items_restaurant ON public.menu_items(restaurant_id);\nCREATE INDEX IF NOT EXISTS idx_orders_user ON public.orders(user_id);\nCREATE INDEX IF NOT EXISTS idx_orders_restaurant ON public.orders(restaurant_id);\nCREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);\nCREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);\nCREATE INDEX IF NOT EXISTS idx_addresses_user ON public.addresses(user_id);\nCREATE INDEX IF NOT EXISTS idx_favorites_user ON public.favorites(user_id);\nCREATE INDEX IF NOT EXISTS idx_reviews_restaurant ON public.reviews(restaurant_id);\nCREATE INDEX IF NOT EXISTS idx_reviews_user ON public.reviews(user_id);\nCREATE INDEX IF NOT EXISTS idx_payment_methods_user ON public.payment_methods(user_id);\n\nALTER TABLE public.users ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.restaurants ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.cuisines ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.delivery_zones ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.restaurant_cuisines ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY \"Users can view their own profile\" ON public.users FOR SELECT USING (auth.uid() = id);\nCREATE POLICY \"Users can update their own profile\" ON public.users FOR UPDATE USING (auth.uid() = id);\n\nCREATE POLICY \"Anyone can view restaurants\" ON public.restaurants FOR SELECT USING (true);\n\nCREATE POLICY \"Anyone can view menu items\" ON public.menu_items FOR SELECT USING (true);\n\nCREATE POLICY \"Anyone can view cuisines\" ON public.cuisines FOR SELECT USING (true);\n\nCREATE POLICY \"Anyone can view restaurant cuisines\" ON public.restaurant_cuisines FOR SELECT USING (true);\n\nCREATE POLICY \"Users can view their own addresses\" ON public.addresses FOR SELECT USING (auth.uid() = user_id);\nCREATE POLICY \"Users can insert their own addresses\" ON public.addresses FOR INSERT WITH CHECK (auth.uid() = user_id);\nCREATE POLICY \"Users can update their own addresses\" ON public.addresses FOR UPDATE USING (auth.uid() = user_id);\nCREATE POLICY \"Users can delete their own addresses\" ON public.addresses FOR DELETE USING (auth.uid() = user_id);\n\nCREATE POLICY \"Users can view their own favorites\" ON public.favorites FOR SELECT USING (auth.uid() = user_id);\nCREATE POLICY \"Users can insert their own favorites\" ON public.favorites FOR INSERT WITH CHECK (auth.uid() = user_id);\nCREATE POLICY \"Users can delete their own favorites\" ON public.favorites FOR DELETE USING (auth.uid() = user_id);\n\nCREATE POLICY \"Users can view their own payment methods\" ON public.payment_methods FOR SELECT USING (auth.uid() = user_id);\nCREATE POLICY \"Users can insert their own payment methods\" ON public.payment_methods FOR INSERT WITH CHECK (auth.uid() = user_id);\nCREATE POLICY \"Users can update their own payment methods\" ON public.payment_methods FOR UPDATE USING (auth.uid() = user_id);\nCREATE POLICY \"Users can delete their own payment methods\" ON public.payment_methods FOR DELETE USING (auth.uid() = user_id);\n\nCREATE POLICY \"Users can view their own orders\" ON public.orders FOR SELECT USING (auth.uid() = user_id);\nCREATE POLICY \"Users can insert their own orders\" ON public.orders FOR INSERT WITH CHECK (auth.uid() = user_id);\nCREATE POLICY \"Users can update their own orders\" ON public.orders FOR UPDATE USING (auth.uid() = user_id);\n\nCREATE POLICY \"Users can view order items for their orders\" ON public.order_items FOR SELECT USING (EXISTS (SELECT 1 FROM public.orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()));\nCREATE POLICY \"Users can insert order items for their orders\" ON public.order_items FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()));\n\nCREATE POLICY \"Users can view reviews for restaurants\" ON public.reviews FOR SELECT USING (true);\nCREATE POLICY \"Users can insert their own reviews\" ON public.reviews FOR INSERT WITH CHECK (auth.uid() = user_id);\nCREATE POLICY \"Users can update their own reviews\" ON public.reviews FOR UPDATE USING (auth.uid() = user_id);\nCREATE POLICY \"Users can delete their own reviews\" ON public.reviews FOR DELETE USING (auth.uid() = user_id);\n\nCREATE POLICY \"Anyone can view delivery zones\" ON public.delivery_zones FOR SELECT USING (true);\n\nCREATE OR REPLACE FUNCTION public.handle_new_user()\nRETURNS trigger AS $$\nBEGIN\n  INSERT INTO public.users (id, email, created_at, updated_at)\n  VALUES (NEW.id, NEW.email, now(), now())\n  ON CONFLICT (id) DO NOTHING;\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql SECURITY DEFINER;\n\nDROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;\nCREATE TRIGGER on_auth_user_created\n  AFTER INSERT ON auth.users\n  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();",
+    "tables": [
+      {
+        "name": "users",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "email",
+            "type": "text"
+          },
+          {
+            "name": "phone",
+            "type": "text"
+          },
+          {
+            "name": "first_name",
+            "type": "text"
+          },
+          {
+            "name": "last_name",
+            "type": "text"
+          },
+          {
+            "name": "avatar_url",
+            "type": "text"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "cuisines",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "icon",
+            "type": "text"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "restaurants",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "logo_url",
+            "type": "text"
+          },
+          {
+            "name": "rating",
+            "type": "numeric"
+          },
+          {
+            "name": "delivery_time_min",
+            "type": "integer"
+          },
+          {
+            "name": "delivery_time_max",
+            "type": "integer"
+          },
+          {
+            "name": "delivery_fee",
+            "type": "numeric"
+          },
+          {
+            "name": "min_order_amount",
+            "type": "numeric"
+          },
+          {
+            "name": "is_open",
+            "type": "boolean"
+          },
+          {
+            "name": "latitude",
+            "type": "numeric"
+          },
+          {
+            "name": "longitude",
+            "type": "numeric"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "restaurant_cuisines",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "restaurant_id",
+            "type": "uuid"
+          },
+          {
+            "name": "cuisine_id",
+            "type": "uuid"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "menu_items",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "restaurant_id",
+            "type": "uuid"
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "description",
+            "type": "text"
+          },
+          {
+            "name": "price",
+            "type": "numeric"
+          },
+          {
+            "name": "image_url",
+            "type": "text"
+          },
+          {
+            "name": "is_available",
+            "type": "boolean"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "addresses",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "user_id",
+            "type": "uuid"
+          },
+          {
+            "name": "label",
+            "type": "text"
+          },
+          {
+            "name": "street",
+            "type": "text"
+          },
+          {
+            "name": "city",
+            "type": "text"
+          },
+          {
+            "name": "postal_code",
+            "type": "text"
+          },
+          {
+            "name": "latitude",
+            "type": "numeric"
+          },
+          {
+            "name": "longitude",
+            "type": "numeric"
+          },
+          {
+            "name": "is_default",
+            "type": "boolean"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "favorites",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "user_id",
+            "type": "uuid"
+          },
+          {
+            "name": "restaurant_id",
+            "type": "uuid"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "payment_methods",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "user_id",
+            "type": "uuid"
+          },
+          {
+            "name": "card_last_four",
+            "type": "text"
+          },
+          {
+            "name": "card_brand",
+            "type": "text"
+          },
+          {
+            "name": "is_default",
+            "type": "boolean"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "user_id",
+            "type": "uuid"
+          },
+          {
+            "name": "restaurant_id",
+            "type": "uuid"
+          },
+          {
+            "name": "address_id",
+            "type": "uuid"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          },
+          {
+            "name": "total_amount",
+            "type": "numeric"
+          },
+          {
+            "name": "delivery_fee",
+            "type": "numeric"
+          },
+          {
+            "name": "estimated_delivery_time",
+            "type": "integer"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "order_items",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "order_id",
+            "type": "uuid"
+          },
+          {
+            "name": "menu_item_id",
+            "type": "uuid"
+          },
+          {
+            "name": "quantity",
+            "type": "integer"
+          },
+          {
+            "name": "price",
+            "type": "numeric"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "reviews",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "user_id",
+            "type": "uuid"
+          },
+          {
+            "name": "restaurant_id",
+            "type": "uuid"
+          },
+          {
+            "name": "rating",
+            "type": "integer"
+          },
+          {
+            "name": "comment",
+            "type": "text"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      },
+      {
+        "name": "delivery_zones",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid"
+          },
+          {
+            "name": "restaurant_id",
+            "type": "uuid"
+          },
+          {
+            "name": "latitude",
+            "type": "numeric"
+          },
+          {
+            "name": "longitude",
+            "type": "numeric"
+          },
+          {
+            "name": "radius_km",
+            "type": "numeric"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone"
+          }
+        ]
+      }
+    ]
+  },
+  "auth": {
+    "EXTERNAL_EMAIL_ENABLED": true,
+    "MAILER_AUTOCONFIRM": false
+  },
+  "storage": {
+    "buckets": [
+      {
+        "name": "restaurant_images",
+        "options": {
+          "public": true,
+          "fileSizeLimit": 5242880,
+          "allowedMimeTypes": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      },
+      {
+        "name": "menu_item_images",
+        "options": {
+          "public": true,
+          "fileSizeLimit": 5242880,
+          "allowedMimeTypes": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      },
+      {
+        "name": "user_avatars",
+        "options": {
+          "public": true,
+          "fileSizeLimit": 2097152,
+          "allowedMimeTypes": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ]
+        }
+      }
+    ]
+  },
+  "supabase": {
+    "projectRef": "xuuexrxhkipibdhmzjts",
+    "projectUrl": "https://xuuexrxhkipibdhmzjts.supabase.co",
+    "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1dWV4cnhoa2lwaWJkaG16anRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNDYyNzAsImV4cCI6MjA5MTgyMjI3MH0.yjmKDL-jLcR1FRp8OuQVISrplmySviZrguW9A5tFnnM",
+    "status": "ready"
+  }
+}
