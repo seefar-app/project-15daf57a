@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
@@ -43,11 +44,15 @@ export default function HomeScreen() {
     searchRestaurants,
     filterByCuisine,
     setSelectedRestaurant,
+    getCartCount,
   } = useStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
+  const cartBadgeAnim = useRef(new Animated.Value(1)).current;
+
+  const cartCount = getCartCount();
 
   const cuisineFilters = [
     { key: 'All', label: t('cuisine_all') },
@@ -68,6 +73,22 @@ export default function HomeScreen() {
     }).start();
   }, []);
 
+  // Animate cart badge when count changes
+  useEffect(() => {
+    if (cartCount > 0) {
+      Animated.sequence([
+        Animated.spring(cartBadgeAnim, {
+          toValue: 1.2,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cartBadgeAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [cartCount]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchRestaurants();
@@ -77,6 +98,13 @@ export default function HomeScreen() {
   const handleRestaurantPress = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
     router.push(`/restaurant/${restaurant.id}`);
+  };
+
+  const handleCartPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (cartCount > 0) {
+      router.push('/checkout');
+    }
   };
 
   const filteredRestaurants = restaurants.filter((r) => {
@@ -138,20 +166,79 @@ export default function HomeScreen() {
                 {user?.name?.split(' ')[0] || 'Friend'} 👋
               </Text>
             </View>
-            <Pressable
+
+            {/* Header Action Buttons */}
+            <View
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                justifyContent: 'center',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
                 alignItems: 'center',
+                gap: 12,
               }}
-              accessibilityLabel={t('notifications_title')}
-              accessibilityRole="button"
             >
-              <Ionicons name="notifications-outline" size={24} color="#fff" />
-            </Pressable>
+              {/* Cart Button */}
+              <Pressable
+                onPress={handleCartPress}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+                accessibilityLabel={`Cart, ${cartCount} items`}
+                accessibilityRole="button"
+                accessibilityHint="View your cart"
+              >
+                <Ionicons name="cart-outline" size={24} color="#fff" />
+                {cartCount > 0 && (
+                  <Animated.View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: isRTL ? undefined : -4,
+                      left: isRTL ? -4 : undefined,
+                      backgroundColor: theme.error,
+                      borderRadius: 12,
+                      minWidth: 24,
+                      height: 24,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      paddingHorizontal: 6,
+                      borderWidth: 2,
+                      borderColor: '#fff',
+                      transform: [{ scale: cartBadgeAnim }],
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: '#fff',
+                      }}
+                    >
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </Text>
+                  </Animated.View>
+                )}
+              </Pressable>
+
+              {/* Notification Button */}
+              <Pressable
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+                accessibilityLabel={t('notifications_title')}
+                accessibilityRole="button"
+              >
+                <Ionicons name="notifications-outline" size={24} color="#fff" />
+              </Pressable>
+            </View>
           </View>
 
           <View
