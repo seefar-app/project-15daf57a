@@ -1,62 +1,224 @@
-import { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Animated } from 'react-native';
+import { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Image,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { StatusIndicator } from '@/components/shared/StatusIndicator';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useStore } from '@/store/useStore';
 import { useTheme } from '@/hooks/useTheme';
-import { Order, OrderStatus } from '@/types';
-import { format } from 'date-fns';
+import { useTranslation } from '@/hooks/useTranslation';
+import { Order } from '@/types';
 
-const statusConfig: Record<OrderStatus, { label: string; variant: 'info' | 'warning' | 'success' | 'error' | 'default' }> = {
-  pending: { label: 'Pending', variant: 'warning' },
-  confirmed: { label: 'Confirmed', variant: 'info' },
-  preparing: { label: 'Preparing', variant: 'info' },
-  ready: { label: 'Ready', variant: 'success' },
-  picked_up: { label: 'Picked Up', variant: 'success' },
-  on_the_way: { label: 'On the Way', variant: 'success' },
-  delivered: { label: 'Delivered', variant: 'success' },
-  cancelled: { label: 'Cancelled', variant: 'error' },
-};
+type OrderTab = 'active' | 'past';
 
 export default function OrdersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { t, isRTL } = useTranslation();
+  const { orders } = useStore();
 
-  const { orders, cart, activeOrder, setActiveOrder, getCartTotal, getCartCount } = useStore();
-  const cartCount = getCartCount();
-  const cartTotal = getCartTotal();
+  const [activeTab, setActiveTab] = useState<OrderTab>('active');
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const activeOrders = orders.filter(
+    (order) => !['delivered', 'cancelled'].includes(order.status)
+  );
+  const pastOrders = orders.filter((order) =>
+    ['delivered', 'cancelled'].includes(order.status)
+  );
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+  const getStatusColor = (status: Order['status']) => {
+    switch (status) {
+      case 'pending':
+        return theme.warning;
+      case 'confirmed':
+      case 'preparing':
+        return theme.info;
+      case 'ready':
+      case 'picked_up':
+      case 'on_the_way':
+        return theme.primary;
+      case 'delivered':
+        return theme.success;
+      case 'cancelled':
+        return theme.error;
+      default:
+        return theme.textMuted;
+    }
+  };
+
+  const getStatusText = (status: Order['status']) => {
+    const statusMap: Record<Order['status'], string> = {
+      pending: t('orders_status_pending'),
+      confirmed: t('orders_status_confirmed'),
+      preparing: t('orders_status_preparing'),
+      ready: t('orders_status_ready'),
+      picked_up: t('orders_status_picked_up'),
+      on_the_way: t('orders_status_on_the_way'),
+      delivered: t('orders_status_delivered'),
+      cancelled: t('orders_status_cancelled'),
+    };
+    return statusMap[status];
+  };
 
   const handleOrderPress = (order: Order) => {
-    setActiveOrder(order);
     router.push(`/order/${order.id}`);
   };
 
-  const handleCheckout = () => {
-    router.push('/checkout');
-  };
+  const renderOrder = (order: Order) => (
+    <Card
+      key={order.id}
+      padding="none"
+      variant="elevated"
+      onPress={() => handleOrderPress(order)}
+    >
+      <View style={{ padding: 16 }}>
+        <View
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 12,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: theme.text,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            >
+              {order.restaurant.name}
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: theme.textSecondary,
+                marginTop: 2,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            >
+              {new Date(order.createdAt).toLocaleDateString()} •{' '}
+              {new Date(order.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          </View>
+          <Badge
+            label={getStatusText(order.status)}
+            variant={
+              order.status === 'delivered'
+                ? 'success'
+                : order.status === 'cancelled'
+                ? 'error'
+                : 'warning'
+            }
+          />
+        </View>
 
-  const activeOrders = orders.filter(
-    (o) => !['delivered', 'cancelled'].includes(o.status)
-  );
-  const pastOrders = orders.filter((o) =>
-    ['delivered', 'cancelled'].includes(o.status)
+        <View
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
+          <Image
+            source={{ uri: order.restaurant.image }}
+            style={{ width: 60, height: 60, borderRadius: 8 }}
+            resizeMode="cover"
+          />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                color: theme.textSecondary,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+              numberOfLines={2}
+            >
+              {order.items.map((item) => `${item.quantity}x ${item.name}`).join(', ')}
+            </Text>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: theme.text,
+                marginTop: 4,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            >
+              ${order.total.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            gap: 8,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+          }}
+        >
+          {activeTab === 'active' ? (
+            <Pressable
+              style={{
+                flex: 1,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 8,
+                backgroundColor: theme.primary,
+              }}
+              onPress={() => handleOrderPress(order)}
+              accessibilityLabel={t('orders_track')}
+              accessibilityRole="button"
+            >
+              <Ionicons name="location-outline" size={18} color="#fff" />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
+                {t('orders_track')}
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={{
+                flex: 1,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 8,
+                backgroundColor: theme.secondary,
+              }}
+              accessibilityLabel={t('orders_reorder')}
+              accessibilityRole="button"
+            >
+              <Ionicons name="repeat-outline" size={18} color={theme.primary} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: theme.primary }}>
+                {t('orders_reorder')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Card>
   );
 
   return (
@@ -69,298 +231,107 @@ export default function OrdersScreen() {
           paddingBottom: 24,
         }}
       >
-        <Text style={{ fontSize: 28, fontWeight: '700', color: '#fff' }}>
-          My Orders
+        <Text
+          style={{
+            fontSize: 28,
+            fontWeight: '700',
+            color: '#fff',
+            marginBottom: 20,
+            textAlign: isRTL ? 'right' : 'left',
+          }}
+        >
+          {t('orders_title')}
         </Text>
-        <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>
-          Track your orders and reorder favorites
-        </Text>
-      </LinearGradient>
 
-      {/* Cart Preview */}
-      {cartCount > 0 && (
-        <Pressable onPress={handleCheckout}>
-          <View
+        <View
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: 12,
+            padding: 4,
+          }}
+        >
+          <Pressable
             style={{
-              margin: 20,
-              marginBottom: 0,
-              backgroundColor: theme.primary,
-              borderRadius: 16,
-              padding: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              shadowColor: theme.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: activeTab === 'active' ? '#fff' : 'transparent',
             }}
+            onPress={() => setActiveTab('active')}
+            accessibilityLabel={t('orders_active')}
+            accessibilityRole="button"
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <Ionicons name="cart" size={22} color="#fff" />
-              </View>
-              <View>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>
-                  {cartCount} items in cart
-                </Text>
-                <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
-                  ${cartTotal.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
-                Checkout
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
-            </View>
-          </View>
-        </Pressable>
-      )}
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 20, paddingTop: 16 }}
-      >
-        <Animated.View style={{ opacity: fadeAnim }}>
-          {/* Active Orders */}
-          {activeOrders.length > 0 && (
-            <View style={{ marginBottom: 24 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <StatusIndicator status="online" pulse />
-                <Text style={{ fontSize: 18, fontWeight: '600', color: theme.text }}>
-                  Active Orders
-                </Text>
-              </View>
-
-              {activeOrders.map((order) => (
-                <Card
-                  key={order.id}
-                  variant="elevated"
-                  onPress={() => handleOrderPress(order)}
-                  style={{ marginBottom: 12 }}
-                >
-                  <View style={{ flexDirection: 'row', gap: 14 }}>
-                    <Image
-                      source={{ uri: order.restaurant.image }}
-                      style={{ width: 70, height: 70, borderRadius: 12 }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: '600',
-                            color: theme.text,
-                            flex: 1,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {order.restaurant.name}
-                        </Text>
-                        <Badge
-                          label={statusConfig[order.status].label}
-                          variant={statusConfig[order.status].variant}
-                          size="sm"
-                        />
-                      </View>
-                      <Text
-                        style={{ fontSize: 13, color: theme.textSecondary, marginTop: 4 }}
-                      >
-                        {order.items.length} items • ${order.totalPrice.toFixed(2)}
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 4,
-                          marginTop: 8,
-                        }}
-                      >
-                        <Ionicons
-                          name="time-outline"
-                          size={14}
-                          color={theme.primary}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            color: theme.primary,
-                            fontWeight: '500',
-                          }}
-                        >
-                          Est. {format(order.estimatedDelivery, 'h:mm a')}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </Card>
-              ))}
-            </View>
-          )}
-
-          {/* Past Orders */}
-          {pastOrders.length > 0 && (
-            <View>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: theme.text,
-                  marginBottom: 16,
-                }}
-              >
-                Past Orders
-              </Text>
-
-              {pastOrders.map((order) => (
-                <Card
-                  key={order.id}
-                  variant="outline"
-                  onPress={() => handleOrderPress(order)}
-                  style={{ marginBottom: 12 }}
-                >
-                  <View style={{ flexDirection: 'row', gap: 14 }}>
-                    <Image
-                      source={{ uri: order.restaurant.image }}
-                      style={{ width: 60, height: 60, borderRadius: 10 }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{ fontSize: 15, fontWeight: '600', color: theme.text }}
-                        numberOfLines={1}
-                      >
-                        {order.restaurant.name}
-                      </Text>
-                      <Text
-                        style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}
-                      >
-                        {format(order.createdAt, 'MMM d, yyyy')} •{' '}
-                        {order.items.length} items
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginTop: 8,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: '600',
-                            color: theme.text,
-                          }}
-                        >
-                          ${order.totalPrice.toFixed(2)}
-                        </Text>
-                        <Pressable
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 4,
-                            backgroundColor: theme.secondary,
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 20,
-                          }}
-                        >
-                          <Ionicons name="refresh" size={14} color={theme.primary} />
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              fontWeight: '600',
-                              color: theme.primary,
-                            }}
-                          >
-                            Reorder
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-                </Card>
-              ))}
-            </View>
-          )}
-
-          {/* Empty State */}
-          {orders.length === 0 && cartCount === 0 && (
-            <View
+            <Text
               style={{
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingVertical: 60,
+                fontSize: 14,
+                fontWeight: '600',
+                color: activeTab === 'active' ? theme.primary : '#fff',
+                textAlign: 'center',
               }}
             >
-              <View
-                style={{
-                  width: 100,
-                  height: 100,
-                  borderRadius: 50,
-                  backgroundColor: theme.secondary,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginBottom: 24,
-                }}
-              >
-                <Ionicons name="receipt-outline" size={50} color={theme.primary} />
-              </View>
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: '600',
-                  color: theme.text,
-                  marginBottom: 8,
-                }}
-              >
-                No orders yet
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: theme.textSecondary,
-                  textAlign: 'center',
-                  marginBottom: 24,
-                }}
-              >
-                Start exploring restaurants and place your first order!
-              </Text>
-              <Button
-                title="Browse Restaurants"
-                onPress={() => router.push('/(tabs)')}
-                icon="restaurant-outline"
-              />
-            </View>
-          )}
-        </Animated.View>
+              {t('orders_active')} ({activeOrders.length})
+            </Text>
+          </Pressable>
+          <Pressable
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: activeTab === 'past' ? '#fff' : 'transparent',
+            }}
+            onPress={() => setActiveTab('past')}
+            accessibilityLabel={t('orders_past')}
+            accessibilityRole="button"
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: activeTab === 'past' ? theme.primary : '#fff',
+                textAlign: 'center',
+              }}
+            >
+              {t('orders_past')} ({pastOrders.length})
+            </Text>
+          </Pressable>
+        </View>
+      </LinearGradient>
 
-        <View style={{ height: 40 }} />
+      <ScrollView
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: insets.bottom + 20,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {activeTab === 'active' ? (
+          activeOrders.length > 0 ? (
+            <View style={{ gap: 16 }}>
+              {activeOrders.map(renderOrder)}
+            </View>
+          ) : (
+            <EmptyState
+              icon="receipt-outline"
+              title={t('orders_no_active')}
+              description={t('home_search_placeholder')}
+              actionLabel={t('home_featured')}
+              onAction={() => router.push('/(tabs)')}
+            />
+          )
+        ) : pastOrders.length > 0 ? (
+          <View style={{ gap: 16 }}>
+            {pastOrders.map(renderOrder)}
+          </View>
+        ) : (
+          <EmptyState
+            icon="time-outline"
+            title={t('orders_no_past')}
+            description={t('home_search_placeholder')}
+            actionLabel={t('home_featured')}
+            onAction={() => router.push('/(tabs)')}
+          />
+        )}
       </ScrollView>
     </View>
   );

@@ -8,39 +8,36 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
+import { useLanguageStore, Language } from '@/store/useLanguageStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useLanguageStore, Language } from '@/store/useLanguageStore';
 
-const languages = [
-  { code: 'en' as Language, name: 'English', nativeName: 'English', flag: '🇬🇧' },
-  { code: 'ar' as Language, name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
-  { code: 'fr' as Language, name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+const languages: { code: Language; name: string; nativeName: string; flag: string }[] = [
+  { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
+  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
 ];
 
 export default function LanguageScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { t, currentLanguage } = useTranslation();
+  const { t, currentLanguage, isRTL } = useTranslation();
   const { setLanguage } = useLanguageStore();
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>(currentLanguage);
 
   const handleLanguageSelect = (languageCode: Language) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedLanguage(languageCode);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    const newIsRTL = languageCode === 'ar';
+    const currentIsRTL = currentLanguage === 'ar';
 
-    // Check if RTL change is needed
-    const needsRTLChange = (languageCode === 'ar') !== (currentLanguage === 'ar');
-
-    if (needsRTLChange) {
+    if (newIsRTL !== currentIsRTL) {
       Alert.alert(
         t('language_restart_required'),
-        t('language_restart_required'),
+        'The app needs to restart for RTL changes to take effect.',
         [
           {
             text: t('language_restart_later'),
@@ -54,9 +51,8 @@ export default function LanguageScreen() {
             text: t('language_restart_now'),
             onPress: () => {
               setLanguage(languageCode);
-              // In production, use: RNRestart.Restart()
-              Alert.alert('Demo Mode', 'In production, app would restart here');
-              router.back();
+              // In production, use: Updates.reloadAsync() from expo-updates
+              Alert.alert('Restart Required', 'Please close and reopen the app.');
             },
           },
         ]
@@ -69,17 +65,19 @@ export default function LanguageScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <LinearGradient
-        colors={theme.gradient as unknown as string[]}
+      <View
         style={{
           paddingTop: insets.top + 16,
           paddingHorizontal: 20,
-          paddingBottom: 24,
+          paddingBottom: 20,
+          backgroundColor: theme.card,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border,
         }}
       >
         <View
           style={{
-            flexDirection: 'row',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
             alignItems: 'center',
             gap: 16,
           }}
@@ -90,21 +88,26 @@ export default function LanguageScreen() {
               width: 40,
               height: 40,
               borderRadius: 20,
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              backgroundColor: theme.secondary,
               justifyContent: 'center',
               alignItems: 'center',
             }}
             accessibilityLabel={t('common_back')}
             accessibilityRole="button"
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons
+              name={isRTL ? 'chevron-forward' : 'chevron-back'}
+              size={24}
+              color={theme.primary}
+            />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text
               style={{
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: '700',
-                color: '#fff',
+                color: theme.text,
+                textAlign: isRTL ? 'right' : 'left',
               }}
             >
               {t('language_title')}
@@ -112,15 +115,16 @@ export default function LanguageScreen() {
             <Text
               style={{
                 fontSize: 14,
-                color: 'rgba(255, 255, 255, 0.9)',
-                marginTop: 4,
+                color: theme.textSecondary,
+                marginTop: 2,
+                textAlign: isRTL ? 'right' : 'left',
               }}
             >
               {t('language_subtitle')}
             </Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView
         contentContainerStyle={{
@@ -129,98 +133,101 @@ export default function LanguageScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ gap: 12 }}>
-          {languages.map((language) => {
-            const isSelected = selectedLanguage === language.code;
-            return (
-              <Card
-                key={language.code}
-                variant="elevated"
+        <Card variant="elevated" padding="none">
+          {languages.map((language, index) => (
+            <View key={language.code}>
+              <Pressable
                 onPress={() => handleLanguageSelect(language.code)}
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  padding: 16,
+                  gap: 16,
+                }}
+                accessibilityLabel={`${language.name} - ${language.nativeName}`}
+                accessibilityRole="button"
               >
                 <View
                   style={{
-                    flexDirection: 'row',
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: theme.secondary,
+                    justifyContent: 'center',
                     alignItems: 'center',
-                    gap: 16,
                   }}
                 >
-                  <View
+                  <Text style={{ fontSize: 24 }}>{language.flag}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
                     style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
-                      backgroundColor: isSelected ? theme.primaryLight : theme.secondary,
-                      justifyContent: 'center',
-                      alignItems: 'center',
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: theme.text,
+                      textAlign: isRTL ? 'right' : 'left',
                     }}
                   >
-                    <Text style={{ fontSize: 32 }}>{language.flag}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: '600',
-                        color: theme.text,
-                      }}
-                    >
-                      {language.nativeName}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: theme.textSecondary,
-                        marginTop: 2,
-                      }}
-                    >
-                      {language.name}
-                    </Text>
-                  </View>
-                  {isSelected && (
-                    <View
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: theme.primary,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Ionicons name="checkmark" size={20} color="#fff" />
-                    </View>
-                  )}
+                    {language.name}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: theme.textSecondary,
+                      marginTop: 2,
+                      textAlign: isRTL ? 'right' : 'left',
+                    }}
+                  >
+                    {language.nativeName}
+                  </Text>
                 </View>
-              </Card>
-            );
-          })}
-        </View>
+                {currentLanguage === language.code && (
+                  <Ionicons name="checkmark-circle" size={24} color={theme.success} />
+                )}
+              </Pressable>
+              {index < languages.length - 1 && (
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: theme.border,
+                    marginLeft: isRTL ? 0 : 80,
+                    marginRight: isRTL ? 80 : 0,
+                  }}
+                />
+              )}
+            </View>
+          ))}
+        </Card>
 
-        {/* Info Card */}
-        <Card
-          variant="outline"
+        <View
           style={{
             marginTop: 24,
-            backgroundColor: theme.infoLight,
-            borderColor: theme.info,
+            padding: 16,
+            backgroundColor: theme.secondary,
+            borderRadius: 12,
           }}
         >
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Ionicons name="information-circle" size={24} color={theme.info} />
+          <View
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              gap: 12,
+            }}
+          >
+            <Ionicons name="information-circle-outline" size={24} color={theme.primary} />
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 14,
                   color: theme.text,
                   lineHeight: 20,
+                  textAlign: isRTL ? 'right' : 'left',
                 }}
               >
-                Changing to Arabic will enable right-to-left (RTL) layout. The app needs to restart for this change to take effect.
+                {t('language_restart_required')}
               </Text>
             </View>
           </View>
-        </Card>
+        </View>
       </ScrollView>
     </View>
   );

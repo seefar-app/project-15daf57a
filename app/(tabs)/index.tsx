@@ -20,17 +20,17 @@ import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
 import { useStore } from '@/store/useStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Restaurant } from '@/types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
 
-const cuisineFilters = ['All', 'Japanese', 'Italian', 'Mexican', 'American', 'Thai', 'Mediterranean'];
-
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { t, isRTL } = useTranslation();
 
   const { user } = useAuthStore();
   const {
@@ -48,6 +48,16 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
+
+  const cuisineFilters = [
+    { key: 'All', label: t('cuisine_all') },
+    { key: 'Japanese', label: t('cuisine_japanese') },
+    { key: 'Italian', label: t('cuisine_italian') },
+    { key: 'Mexican', label: t('cuisine_mexican') },
+    { key: 'American', label: t('cuisine_american') },
+    { key: 'Thai', label: t('cuisine_thai') },
+    { key: 'Mediterranean', label: t('cuisine_mediterranean') },
+  ];
 
   useEffect(() => {
     fetchRestaurants();
@@ -85,9 +95,9 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('home_good_morning');
+    if (hour < 17) return t('home_good_afternoon');
+    return t('home_good_evening');
   };
 
   return (
@@ -115,7 +125,7 @@ export default function HomeScreen() {
         >
           <View
             style={{
-              flexDirection: 'row',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
             }}
@@ -137,6 +147,8 @@ export default function HomeScreen() {
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
+              accessibilityLabel={t('notifications_title')}
+              accessibilityRole="button"
             >
               <Ionicons name="notifications-outline" size={24} color="#fff" />
             </Pressable>
@@ -144,7 +156,7 @@ export default function HomeScreen() {
 
           <View
             style={{
-              flexDirection: 'row',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
               alignItems: 'center',
               backgroundColor: 'rgba(255,255,255,0.95)',
               borderRadius: 16,
@@ -154,20 +166,26 @@ export default function HomeScreen() {
           >
             <Ionicons name="search" size={22} color={theme.textMuted} />
             <TextInput
-              placeholder="Search restaurants or dishes..."
+              placeholder={t('home_search_placeholder')}
               placeholderTextColor={theme.textMuted}
               value={searchQuery}
               onChangeText={searchRestaurants}
               style={{
                 flex: 1,
                 paddingVertical: 14,
-                marginLeft: 12,
+                marginLeft: isRTL ? 0 : 12,
+                marginRight: isRTL ? 12 : 0,
                 fontSize: 16,
                 color: theme.text,
+                textAlign: isRTL ? 'right' : 'left',
               }}
             />
             {searchQuery.length > 0 && (
-              <Pressable onPress={() => searchRestaurants('')}>
+              <Pressable 
+                onPress={() => searchRestaurants('')}
+                accessibilityLabel={t('common_close')}
+                accessibilityRole="button"
+              >
                 <Ionicons name="close-circle" size={20} color={theme.textMuted} />
               </Pressable>
             )}
@@ -189,33 +207,40 @@ export default function HomeScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, gap: 10 }}
+          contentContainerStyle={{ 
+            paddingHorizontal: 20, 
+            paddingVertical: 16, 
+            gap: 10,
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+          }}
         >
           {cuisineFilters.map((cuisine) => (
             <Pressable
-              key={cuisine}
-              onPress={() => filterByCuisine(cuisine === 'All' ? null : cuisine)}
+              key={cuisine.key}
+              onPress={() => filterByCuisine(cuisine.key === 'All' ? null : cuisine.key)}
               style={{
                 paddingHorizontal: 18,
                 paddingVertical: 10,
                 borderRadius: 25,
                 backgroundColor:
-                  selectedCuisine === cuisine || (cuisine === 'All' && !selectedCuisine)
+                  selectedCuisine === cuisine.key || (cuisine.key === 'All' && !selectedCuisine)
                     ? theme.primary
                     : theme.secondary,
               }}
+              accessibilityLabel={cuisine.label}
+              accessibilityRole="button"
             >
               <Text
                 style={{
                   fontSize: 14,
                   fontWeight: '600',
                   color:
-                    selectedCuisine === cuisine || (cuisine === 'All' && !selectedCuisine)
+                    selectedCuisine === cuisine.key || (cuisine.key === 'All' && !selectedCuisine)
                       ? '#fff'
                       : theme.primary,
                 }}
               >
-                {cuisine}
+                {cuisine.label}
               </Text>
             </Pressable>
           ))}
@@ -223,11 +248,25 @@ export default function HomeScreen() {
 
         {/* Featured Section */}
         <View style={{ paddingHorizontal: 20 }}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: theme.text }}>
-            Featured Restaurants
+          <Text 
+            style={{ 
+              fontSize: 22, 
+              fontWeight: '700', 
+              color: theme.text,
+              textAlign: isRTL ? 'right' : 'left',
+            }}
+          >
+            {t('home_featured')}
           </Text>
-          <Text style={{ fontSize: 14, color: theme.textSecondary, marginTop: 4 }}>
-            Top picks curated just for you
+          <Text 
+            style={{ 
+              fontSize: 14, 
+              color: theme.textSecondary, 
+              marginTop: 4,
+              textAlign: isRTL ? 'right' : 'left',
+            }}
+          >
+            {t('home_featured_subtitle')}
           </Text>
         </View>
 
@@ -242,7 +281,12 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
             snapToInterval={CARD_WIDTH + 16}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, gap: 16 }}
+            contentContainerStyle={{ 
+              paddingHorizontal: 20, 
+              paddingVertical: 16, 
+              gap: 16,
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            }}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { x: scrollX } } }],
               { useNativeDriver: true }
@@ -266,7 +310,11 @@ export default function HomeScreen() {
                   key={restaurant.id}
                   style={{ width: CARD_WIDTH, transform: [{ scale }] }}
                 >
-                  <Pressable onPress={() => handleRestaurantPress(restaurant)}>
+                  <Pressable 
+                    onPress={() => handleRestaurantPress(restaurant)}
+                    accessibilityLabel={`${restaurant.name}, ${restaurant.cuisine.join(', ')}`}
+                    accessibilityRole="button"
+                  >
                     <View
                       style={{
                         borderRadius: 20,
@@ -296,26 +344,36 @@ export default function HomeScreen() {
                       />
                       <View style={{ padding: 16 }}>
                         <Text
-                          style={{ fontSize: 18, fontWeight: '700', color: theme.text }}
+                          style={{ 
+                            fontSize: 18, 
+                            fontWeight: '700', 
+                            color: theme.text,
+                            textAlign: isRTL ? 'right' : 'left',
+                          }}
                           numberOfLines={1}
                         >
                           {restaurant.name}
                         </Text>
                         <Text
-                          style={{ fontSize: 13, color: theme.textSecondary, marginTop: 4 }}
+                          style={{ 
+                            fontSize: 13, 
+                            color: theme.textSecondary, 
+                            marginTop: 4,
+                            textAlign: isRTL ? 'right' : 'left',
+                          }}
                           numberOfLines={1}
                         >
                           {restaurant.cuisine.join(' • ')}
                         </Text>
                         <View
                           style={{
-                            flexDirection: 'row',
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
                             alignItems: 'center',
                             marginTop: 12,
                             gap: 12,
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                             <Ionicons name="star" size={16} color={theme.rating} />
                             <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text }}>
                               {restaurant.rating}
@@ -324,7 +382,7 @@ export default function HomeScreen() {
                               ({restaurant.reviewCount})
                             </Text>
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                             <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
                             <Text style={{ fontSize: 14, color: theme.textSecondary }}>
                               {restaurant.deliveryTime}
@@ -344,15 +402,22 @@ export default function HomeScreen() {
         <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
           <View
             style={{
-              flexDirection: 'row',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 22, fontWeight: '700', color: theme.text }}>
-              All Restaurants
+            <Text 
+              style={{ 
+                fontSize: 22, 
+                fontWeight: '700', 
+                color: theme.text,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            >
+              {t('home_all_restaurants')}
             </Text>
-            <Badge label={`${filteredRestaurants.length} places`} variant="primary" />
+            <Badge label={`${filteredRestaurants.length} ${t('home_places')}`} variant="primary" />
           </View>
         </View>
 
@@ -370,7 +435,7 @@ export default function HomeScreen() {
                   variant="elevated"
                   onPress={() => handleRestaurantPress(restaurant)}
                 >
-                  <View style={{ flexDirection: 'row' }}>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}>
                     <Image
                       source={{ uri: restaurant.image }}
                       style={{ width: 110, height: 110, borderRadius: 12 }}
@@ -379,32 +444,42 @@ export default function HomeScreen() {
                     <View style={{ flex: 1, padding: 14, justifyContent: 'space-between' }}>
                       <View>
                         <Text
-                          style={{ fontSize: 16, fontWeight: '600', color: theme.text }}
+                          style={{ 
+                            fontSize: 16, 
+                            fontWeight: '600', 
+                            color: theme.text,
+                            textAlign: isRTL ? 'right' : 'left',
+                          }}
                           numberOfLines={1}
                         >
                           {restaurant.name}
                         </Text>
                         <Text
-                          style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}
+                          style={{ 
+                            fontSize: 13, 
+                            color: theme.textSecondary, 
+                            marginTop: 2,
+                            textAlign: isRTL ? 'right' : 'left',
+                          }}
                           numberOfLines={1}
                         >
                           {restaurant.cuisine.join(' • ')}
                         </Text>
                       </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                           <Ionicons name="star" size={14} color={theme.rating} />
                           <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text }}>
                             {restaurant.rating}
                           </Text>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                           <Ionicons name="time-outline" size={14} color={theme.textMuted} />
                           <Text style={{ fontSize: 13, color: theme.textMuted }}>
                             {restaurant.deliveryTime}
                           </Text>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                           <Ionicons name="bicycle-outline" size={14} color={theme.textMuted} />
                           <Text style={{ fontSize: 13, color: theme.textMuted }}>
                             ${restaurant.deliveryFee.toFixed(2)}

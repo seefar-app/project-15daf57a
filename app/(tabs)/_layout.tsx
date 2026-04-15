@@ -2,10 +2,12 @@ import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useStore } from '@/store/useStore';
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const cartCount = useStore((state) => state.getCartCount());
 
   return (
@@ -30,7 +32,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('home_featured').split(' ')[0], // "Home" or equivalent
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
@@ -39,7 +41,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="orders"
         options={{
-          title: 'Orders',
+          title: t('orders_title'),
           tabBarIcon: ({ color, size }) => (
             <View style={{ position: 'relative' }}>
               <Ionicons name="receipt" size={size} color={color} />
@@ -75,7 +77,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('profile_title'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
