@@ -29,7 +29,8 @@ export default function SignupScreen() {
   const { t, isRTL } = useTranslation();
   const { signup, isLoading, authError } = useAuthStore();
 
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -57,8 +58,12 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     setLocalError('');
 
-    if (!name.trim()) {
-      setLocalError(t('validation_name_required') || 'Please enter your name');
+    if (!firstName.trim()) {
+      setLocalError('Please enter your first name');
+      return;
+    }
+    if (!lastName.trim()) {
+      setLocalError('Please enter your last name');
       return;
     }
     if (!email.trim()) {
@@ -66,7 +71,7 @@ export default function SignupScreen() {
       return;
     }
     if (!phone.trim()) {
-      setLocalError(t('validation_phone_required') || 'Please enter your phone number');
+      setLocalError('Please enter your phone number');
       return;
     }
     if (password.length < 6) {
@@ -74,7 +79,9 @@ export default function SignupScreen() {
       return;
     }
 
-    const success = await signup(name, email, phone, password);
+    // Combine first and last name for the signup function
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    const success = await signup(fullName, email, phone, password);
     if (success) {
       router.replace('/(tabs)');
     }
@@ -164,44 +171,54 @@ export default function SignupScreen() {
             }}
           >
             <Input
-              label={t('auth_full_name') || 'Full Name'}
-              placeholder={t('auth_enter_name') || 'Enter your name'}
-              value={name}
-              onChangeText={setName}
+              label="first_name"
+              placeholder="Enter your first name"
+              value={firstName}
+              onChangeText={setFirstName}
               autoCapitalize="words"
               icon="person-outline"
-              accessibilityLabel={t('auth_full_name') || 'Full Name'}
+              accessibilityLabel="First Name"
             />
 
             <Input
-              label={t('auth_email')}
-              placeholder={t('auth_enter_email') || 'Enter your email'}
+              label="last_name"
+              placeholder="Enter your last name"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              icon="person-outline"
+              accessibilityLabel="Last Name"
+            />
+
+            <Input
+              label="email"
+              placeholder="Enter your email"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               icon="mail-outline"
-              accessibilityLabel={t('auth_email')}
+              accessibilityLabel="Email"
             />
 
             <Input
-              label={t('auth_phone') || 'Phone Number'}
-              placeholder={t('auth_enter_phone') || 'Enter your phone number'}
+              label="phone"
+              placeholder="Enter your phone number"
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
               icon="call-outline"
-              accessibilityLabel={t('auth_phone') || 'Phone Number'}
+              accessibilityLabel="Phone Number"
             />
 
             <Input
-              label={t('auth_password')}
-              placeholder={t('auth_create_password') || 'Create a password'}
+              label="password"
+              placeholder="Create a password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               icon="lock-closed-outline"
-              accessibilityLabel={t('auth_password')}
+              accessibilityLabel="Password"
             />
 
             {displayError && (
