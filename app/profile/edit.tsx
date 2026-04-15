@@ -14,23 +14,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
+import { Toast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/hooks/useToast';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { user, updateUser } = useAuthStore();
+  const { user, updateUser, updateAvatar } = useAuthStore();
+  const { toast, showToast, hideToast, success, error: showError } = useToast();
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -43,33 +48,103 @@ export default function EditProfileScreen() {
   }, []);
 
   const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (!result.canceled) {
-      setAvatar(result.assets[0].uri);
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please grant photo library access to change your profile picture.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        
+        // Update local preview immediately
+        setAvatar(imageUri);
+        setIsUploadingImage(true);
+
+        // Upload to Supabase
+        const uploadResult = await updateAvatar(imageUri);
+
+        setIsUploadingImage(false);
+
+        if (uploadResult.success) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          success('Profile picture updated successfully');
+        } else {
+          // Revert to previous avatar on error
+          setAvatar(user?.avatar || '');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          showError(uploadResult.error || 'Failed to upload image. Please try again.');
+        }
+      }
+    } catch (err) {
+      setIsUploadingImage(false);
+      setAvatar(user?.avatar || '');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showError('An error occurred while uploading the image.');
+      console.error('Image picker error:', err);
     }
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !email.trim() || !phone.trim()) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
-    }
+    try {
+      if (!name.trim() || !email.trim() || !phone.trim()) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showError('Please fill in all fields');
+        return;
+      }
 
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    updateUser({ name, email, phone, avatar });
-    setIsLoading(false);
-    
-    Alert.alert('Success', 'Profile updated successfully', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showError('Please enter a valid email address');
+        return;
+      }
+
+      // Basic phone validation (at least 10 digits)
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (phoneDigits.length < 10) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showError('Please enter a valid phone number');
+        return;
+      }
+
+      setIsLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      await updateUser({ name, email, phone });
+      
+      setIsLoading(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      success('Profile updated successfully');
+      
+      // Navigate back after short delay
+      setTimeout(() => {
+        router.back();
+      }, 1500);
+    } catch (err) {
+      setIsLoading(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showError('Failed to update profile. Please try again.');
+      console.error('Profile update error:', err);
+    }
   };
 
   return (
@@ -93,6 +168,8 @@ export default function EditProfileScreen() {
               justifyContent: 'center',
               alignItems: 'center',
             }}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </Pressable>
@@ -116,9 +193,19 @@ export default function EditProfileScreen() {
           <Animated.View style={{ opacity: fadeAnim, gap: 24 }}>
             {/* Avatar */}
             <View style={{ alignItems: 'center' }}>
-              <Pressable onPress={handlePickImage}>
-                <View>
-                  <Avatar source={avatar} name={name} size="2xl" />
+              <Pressable 
+                onPress={handlePickImage}
+                disabled={isUploadingImage}
+                accessibilityLabel="Change profile picture"
+                accessibilityRole="button"
+                accessibilityHint="Tap to select a new profile picture from your photo library"
+              >
+                <View style={{ position: 'relative' }}>
+                  <Avatar 
+                    source={avatar} 
+                    name={name} 
+                    size="xl"
+                  />
                   <View
                     style={{
                       position: 'absolute',
@@ -127,19 +214,30 @@ export default function EditProfileScreen() {
                       width: 36,
                       height: 36,
                       borderRadius: 18,
-                      backgroundColor: theme.primary,
+                      backgroundColor: isUploadingImage ? theme.textMuted : theme.primary,
                       justifyContent: 'center',
                       alignItems: 'center',
                       borderWidth: 3,
                       borderColor: theme.background,
                     }}
                   >
-                    <Ionicons name="camera" size={18} color="#fff" />
+                    {isUploadingImage ? (
+                      <Ionicons name="hourglass" size={18} color="#fff" />
+                    ) : (
+                      <Ionicons name="camera" size={18} color="#fff" />
+                    )}
                   </View>
                 </View>
               </Pressable>
-              <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 12 }}>
-                Tap to change photo
+              <Text 
+                style={{ 
+                  fontSize: 13, 
+                  color: theme.textMuted, 
+                  marginTop: 12,
+                  textAlign: 'center',
+                }}
+              >
+                {isUploadingImage ? 'Uploading...' : 'Tap to change photo'}
               </Text>
             </View>
 
@@ -151,6 +249,8 @@ export default function EditProfileScreen() {
                 value={name}
                 onChangeText={setName}
                 icon="person-outline"
+                editable={!isLoading}
+                accessibilityLabel="Full name input"
               />
 
               <Input
@@ -161,6 +261,8 @@ export default function EditProfileScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 icon="mail-outline"
+                editable={!isLoading}
+                accessibilityLabel="Email input"
               />
 
               <Input
@@ -170,6 +272,8 @@ export default function EditProfileScreen() {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 icon="call-outline"
+                editable={!isLoading}
+                accessibilityLabel="Phone number input"
               />
             </View>
 
@@ -179,6 +283,7 @@ export default function EditProfileScreen() {
                 title="Save Changes"
                 onPress={handleSave}
                 loading={isLoading}
+                disabled={isUploadingImage}
                 fullWidth
                 size="lg"
               />
@@ -187,11 +292,22 @@ export default function EditProfileScreen() {
                 onPress={() => router.back()}
                 variant="outline"
                 fullWidth
+                disabled={isLoading || isUploadingImage}
               />
             </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onDismiss={hideToast}
+        />
+      )}
     </View>
   );
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User, Address } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase, uploadImage, generateAvatarPath } from '@/lib/supabase';
 
 interface AuthState {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthState {
   logout: () => Promise<void>;
   initializeAuth: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
+  updateAvatar: (imageUri: string) => Promise<{ success: boolean; error?: string }>;
   addAddress: (address: Omit<Address, 'id'>) => Promise<void>;
   removeAddress: (addressId: string) => Promise<void>;
   setDefaultAddress: (addressId: string) => Promise<void>;
@@ -241,7 +242,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         updateData.last_name = lastNameParts.join(' ');
       }
       if (updates.phone) updateData.phone = updates.phone;
-      if (updates.avatar) updateData.avatar_url = updates.avatar;
+      if (updates.email) updateData.email = updates.email;
 
       const { error } = await supabase
         .from('users')
@@ -253,6 +254,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: { ...user, ...updates } });
     } catch (error) {
       console.error('Failed to update user:', error);
+      throw error;
+    }
+  },
+
+  updateAvatar: async (imageUri: string) => {
+    try {
+      const { user } = get();
+      if (!user) {
+        return { success: false, error: 'User not authenticated' };
+      }
+
+      // Extract file extension from URI
+      const ext = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+      
+      // Generate unique path for avatar
+      const avatarPath = generateAvatarPath(user.id, ext);
+
+      // Upload image to Supabase Storage
+      const publicUrl = await uploadImage(imageUri, 'user_avatars', avatarPath);
+
+      if (!publicUrl) {
+        return { success: false, error: 'Failed to upload image' };
+      }
+
+      // Update avatar URL in database
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Failed to update avatar URL:', error);
+        return { success: false, error: 'Failed to save avatar URL' };
+      }
+
+      // Update local state
+      set({ user: { ...user, avatar: publicUrl } });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Avatar update failed:', error);
+      return { success: false, error: 'An unexpected error occurred' };
     }
   },
 
